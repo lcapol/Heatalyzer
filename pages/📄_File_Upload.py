@@ -19,8 +19,8 @@ if 'current_page' not in st.session_state:
 if 'selected_building' not in st.session_state:
     st.session_state['selected_building'] = None
 
-if 'building_files' not in st.session_state:
-        st.session_state['building_files'] = []
+if 'building_folders' not in st.session_state:
+        st.session_state['building_folders'] = []
 
 def main():
 

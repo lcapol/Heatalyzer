@@ -110,8 +110,6 @@ def extend_heatwave(input_file, output_file, heat_length):
     #Save the new EPW file
     file.write(output_file)
 
-    return file
-
 def create_future_heatwave(tmy_file, heatwave_file, future_file, output_file):
 
     #Read TMY data

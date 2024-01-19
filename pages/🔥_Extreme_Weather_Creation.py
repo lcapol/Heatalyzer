@@ -2,6 +2,7 @@ import streamlit as st
 import os
 from pathlib import Path
 import sys
+import io
 
 script_dir = Path(__file__).parent
 sys.path.append(str(script_dir))
@@ -52,6 +53,14 @@ def main():
 
             extend_heatwave(input_file, output_file, days)
 
+            buffer = get_file_buffer(output_file)
+            st.download_button(
+                label="Download EPW file",
+                data=buffer,
+                file_name=file_name,
+                mime="text/plain"
+            )
+
             st.success("File available in Extreme Weather/Prolonged Heatwave folder: " + file_name)
 
     st.subheader('Future Heatwave Scenario')
@@ -72,7 +81,6 @@ def main():
         future_tmy_file = st.selectbox("Select the Projected Future TMY File:", file_options, key='future_tmy')
 
         if st.button('Create Future Heatwave Scenario'):
-            print('hi')
             # Call a function to process the files and display results
             input_folder = 'Extreme Weather/Input/'
 
@@ -86,8 +94,23 @@ def main():
 
             create_future_heatwave(input_folder + baseline_weather_file, input_folder + heatwave_scenario_file, input_folder + future_tmy_file, output_file)
 
-            st.success("File available in Extreme Weather/Future Heatwave folder: " + file_name)
+            buffer = get_file_buffer(output_file)
+            st.download_button(
+                label="Download EPW file",
+                data=buffer,
+                file_name=file_name,
+                mime="text/plain"
+            )
 
+
+def get_file_buffer(file_path):
+    with open(file_path, 'r', encoding='utf-8') as file:
+        text_data = file.read()
+
+    # Convert to binary
+    binary_data = text_data.encode('utf-8')
+    buffer = io.BytesIO(binary_data)
+    return buffer
 
 def results_page(building_folders):
     st.title("Simulation Results")

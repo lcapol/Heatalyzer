@@ -18,8 +18,8 @@ if 'current_page' not in st.session_state:
 if 'selected_building' not in st.session_state:
     st.session_state['selected_building'] = None
 
-if 'building_files' not in st.session_state:
-        st.session_state['building_files'] = []
+if 'building_folders' not in st.session_state:
+        st.session_state['building_folders'] = []
 
 result_types = ['Thermal comfort during hottest weeks', 'Distribution of differences to baseline file', 'Survivability during hottest weeks']
 comparison_types = ['Degree and Exceedance hours', 'Peak Humidex values']
