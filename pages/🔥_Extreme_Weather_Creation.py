@@ -24,6 +24,15 @@ if 'selected_building' not in st.session_state:
 if 'building_files' not in st.session_state:
         st.session_state['building_files'] = []
 
+if 'created_future_heatwave' not in st.session_state:
+    st.session_state['created_future_heatwave'] = False
+    st.session_state['future_heatwave_output_file'] = None
+    st.session_state['future_heatwave_file_name'] = None
+if 'created_prolonged_heatwave' not in st.session_state:
+    st.session_state['created_prolonged_heatwave'] = False
+    st.session_state['prolonged_heatwave_output_file'] = None
+    st.session_state['prolonged_heatwave_file_name'] = None
+
 os.makedirs('Extreme Weather', exist_ok=True)
 os.makedirs('Extreme Weather/Input', exist_ok=True)
 os.makedirs('Extreme Weather/Prolonged Heatwave', exist_ok=True)
@@ -52,16 +61,18 @@ def main():
                 f.write(heatwave_file.getbuffer())
 
             extend_heatwave(input_file, output_file, days)
+            st.session_state['created_prolonged_heatwave'] = True
+            st.session_state['prolonged_heatwave_output_file'] = output_file
+            st.session_state['prolonged_heatwave_file_name'] = file_name
 
-            buffer = get_file_buffer(output_file)
+        if st.session_state.created_prolonged_heatwave:
+            buffer = get_file_buffer(st.session_state.prolonged_heatwave_output_file)
             st.download_button(
                 label="Download EPW file",
                 data=buffer,
-                file_name=file_name,
+                file_name=st.session_state.prolonged_heatwave_file_name,
                 mime="text/plain"
             )
-
-            st.success("File available in Extreme Weather/Prolonged Heatwave folder: " + file_name)
 
     st.subheader('Future Heatwave Scenario')
     st.markdown("""
@@ -94,11 +105,16 @@ def main():
 
             create_future_heatwave(input_folder + baseline_weather_file, input_folder + heatwave_scenario_file, input_folder + future_tmy_file, output_file)
 
-            buffer = get_file_buffer(output_file)
+            st.session_state['created_future_heatwave'] = True
+            st.session_state['future_heatwave_output_file'] = output_file
+            st.session_state['future_heatwave_file_name'] = file_name
+
+        if st.session_state.created_future_heatwave:
+            buffer = get_file_buffer(st.session_state.future_heatwave_output_file)
             st.download_button(
                 label="Download EPW file",
                 data=buffer,
-                file_name=file_name,
+                file_name=st.session_state.future_heatwave_file_name,
                 mime="text/plain"
             )
 

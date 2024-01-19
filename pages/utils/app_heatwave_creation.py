@@ -74,9 +74,6 @@ def find_hottest_summer_day(epw_data):
 #Hearby the day with peak temperature is replicated and replaces the data in the following days
 def extend_heatwave(input_file, output_file, heat_length):
 
-    #How many times we replicate the hottest day is one less than the desired heatwave length
-    len = heat_length - 1
-
     #Load the EPW file
 
     file = epw()
@@ -91,11 +88,17 @@ def extend_heatwave(input_file, output_file, heat_length):
 
     #Select data before and after the hottest day that we do not replace
     before_hottest_data = epw_data.iloc[:hottest_day_index]
-    after_hottest_data = epw_data.iloc[hottest_day_index + 24*(len+1):]
+
+    if hottest_day_index + 24 * heat_length > len(epw_data):
+        days_to_wrap = (hottest_day_index + 24 * heat_length) - len(epw_data)
+        before_hottest_data = before_hottest_data[days_to_wrap:]
+        after_hottest_data = []
+    else:
+        after_hottest_data = epw_data.iloc[hottest_day_index + 24 * heat_length:]
 
     heatwave = hottest_data.copy()
     #Create heatwave, which is heat_length * the data of the hottest day
-    for i in range(len):
+    for i in range(heat_length-1):
         next_year, next_month, next_day = get_next_date(2022, hottest_day, hottest_month, i+1)
 
         new_next_hot_day = hottest_data.copy()
@@ -143,8 +146,6 @@ def create_future_heatwave(tmy_file, heatwave_file, future_file, output_file):
         if i in miss_data_idx:
             continue
 
-        col= epw_cols[i]
-        diff= (heat_data.iloc[:, i] - tmy_data.iloc[:, i])
         fut_heat_data.iloc[:, i] += (heat_data.iloc[:, i] - tmy_data.iloc[:, i])
 
         #clip the RH to [0,100]
@@ -159,37 +160,3 @@ def create_future_heatwave(tmy_file, heatwave_file, future_file, output_file):
             fut_heat_data['Opaque Sky Cover (used if Horizontal IR Intensity missing)'] = fut_heat_data['Opaque Sky Cover (used if Horizontal IR Intensity missing)'].clip(lower=0, upper=10)
 
     fut_heat_df.write(output_file)
-
-
-def main():
-
-    ##Code for prolonging heatwave peak day to last longer
-    '''
-    #Specify desired lengths of heatwave (in days)
-    heat_length = [3, 5, 7]
-
-    #Specify the output folder
-    output_folder = '/Users/Livia/Library/Mobile Documents/com~apple~CloudDocs/Cambridge University/Thesis/Model/Input Data/Haringey/Weather Data/Extended Heatwave/'
-
-    #Specify the EPW file and name for file
-    epw_file_path = '/Users/Livia/Library/Mobile Documents/com~apple~CloudDocs/Cambridge University/Thesis/Model/Input Data/Haringey/Weather Data/Historical Data/2022-lat=51.58155_lng=-0.09965_period=2022.epw'
-    file_name = 'extended_' + '2022-lat=51.58155_lng=-0.09965_period=2022.epw'
-
-    for len in heat_length:
-        extend_heatwave(epw_file_path, output_folder, file_name, len)
-    '''
-
-    ##Code for creating a 2080 heatwave scenario based on a TMY, current heatwave, and 2080 typical year
-    tmy_file = '/Users/Livia/Library/Mobile Documents/com~apple~CloudDocs/Cambridge University/Thesis/Model/Input Data/Haringey/Weather Data/Meteonorm/Historical/Haringey-hour.epw'
-    #tmy_file = '/Users/Livia/Library/Mobile Documents/com~apple~CloudDocs/Cambridge University/Thesis/Model/Input Data/Haringey/Weather Data/Meteonorm/Contemporary/Haringey-hour.epw'
-    heatwave_file = '/Users/Livia/Library/Mobile Documents/com~apple~CloudDocs/Cambridge University/Thesis/Model/Input Data/Haringey/Weather Data/Historical Data/2022-lat=51.58155_lng=-0.09965_period=2022.epw'
-    future_file = '/Users/Livia/Library/Mobile Documents/com~apple~CloudDocs/Cambridge University/Thesis/Model/Input Data/Haringey/Weather Data/Meteonorm/2030/Haringey-hour.epw'
-    output_folder = '/Users/Livia/Library/Mobile Documents/com~apple~CloudDocs/Cambridge University/Thesis/Model/Input Data/Haringey/Weather Data/Future Heatwave/'
-    file_name = '2030_heatwave.epw'
-    #file_name = '2080_heatwave_contemp.epw'
-
-    create_future_heatwave(tmy_file, heatwave_file, future_file, output_folder, file_name)
-
-
-if __name__ == "__main__":
-    main()

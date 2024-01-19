@@ -132,6 +132,7 @@ def run_simulation():
     st.success('Simulation finished. Starting processing results...')
 
     #Create output visualizations and store them
+    #delete all
 
     postprocess(st.session_state.simulation_folders, st.session_state.building_folders, st.session_state.weather_folders)
 
