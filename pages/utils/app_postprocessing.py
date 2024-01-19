@@ -1,7 +1,6 @@
 ##EnergyPlus output visualization
 import os
 
-import pythermalcomfort
 from eppy.modeleditor import IDF
 import os.path
 import pandas as pd

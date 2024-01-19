@@ -5,7 +5,6 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from thermofeel import calculate_wbt
-from scipy.interpolate import make_interp_spline
 
 #from app_preprocessing import preprocess
 #from app_BEM import BEM_simulation
