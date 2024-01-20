@@ -536,11 +536,14 @@ def create_dh_eh_table(dh_eh_file_path, tc_model, time_period, metric_type):
         st.error('Please choose at least one building and zone.')
         return go.Figure(go.Table())
 
+    show_leeds = False
+
     idx = 0
     if time_period == 'Annual' and metric_type == "Exceedance hours":
         idx = 1
     elif time_period == "Maximum Week" and metric_type == "Degree hours":
         idx = 2
+        show_leeds = st.radio("Show Archetype Zones over LEED's Threshold (120 SET Dh))", ["Yes", "No"]) == "Yes"
     elif time_period == "Maximum Week" and metric_type == "Exceedance hours":
         idx = 3
 
@@ -581,7 +584,14 @@ def create_dh_eh_table(dh_eh_file_path, tc_model, time_period, metric_type):
     # Create Plotly Table
     fig = go.Figure(data=[go.Table(
         header=dict(values=header_values, align='left', font=dict(color='black', size=12)),
-        cells=dict(values=cell_values, align='left', font=dict(color='darkblue', size=11))
+        cells=dict(values=cell_values, align='left', font=dict(color='darkblue', size=11),
+       # Conditional Formatting
+       format=[
+           [{"font": {"color": "red", "bold": True}} if val >= 120 else {} for val in column]
+           if time_period == "Maximum Week" and metric_type == "Degree hours" and show_leeds else {}
+           for column in cell_values
+       ]
+        )
     )])
     fig.update_layout(width=800, height=600, title='Comparison of Degree and Exceedance hours')
 

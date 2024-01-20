@@ -160,3 +160,16 @@ def create_future_heatwave(tmy_file, heatwave_file, future_file, output_file):
             fut_heat_data['Opaque Sky Cover (used if Horizontal IR Intensity missing)'] = fut_heat_data['Opaque Sky Cover (used if Horizontal IR Intensity missing)'].clip(lower=0, upper=10)
 
     fut_heat_df.write(output_file)
+
+
+#Shift all temperature values up by the number of degrees specified
+def include_uhi_effect(epw_file, uhi_degrees, output_file):
+
+    #Read EPW data
+    epw_df = epw()
+    epw_df.read(epw_file)
+    epw_df_data = epw_df.dataframe
+
+    epw_df_data['Dry Bulb Temperature'] += uhi_degrees
+
+    epw_df.write(output_file)
