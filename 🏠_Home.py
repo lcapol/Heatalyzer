@@ -1,12 +1,12 @@
 import streamlit as st
 
 # Set page configuration
-st.set_page_config(page_title='Heat Impact Simulator', page_icon="🏠")
+st.set_page_config(page_title='HeatwaveAnalyzer', page_icon="🏠")
 
 # Page Title
-st.markdown("# Heat Impact Analyzer")
+st.markdown("# HeatwaveAnalyzer")
 st.markdown("""
-Welcome to the Heat Impact Simulator! This application is designed to assist in analyzing building 
+Welcome to the HeatwaveAnalyzer! This application is designed to assist in analyzing building 
 and weather data to understand thermal comfort and survivability during extreme weather conditions. 
 There are two main sections in this application:
 """)

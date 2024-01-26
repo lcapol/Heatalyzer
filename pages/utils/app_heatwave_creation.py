@@ -55,14 +55,8 @@ def find_hottest_summer_day(epw_data):
     month = epw_data['Month']
     day = epw_data['Day']
 
-    # Define summer months (customizable based on location)
-    summer_months = [6, 7, 8]
-
-    # Filter data for summer months
-    summer_data = temperature_data[(month.isin(summer_months))]
-
     # Find the index of the hottest hour in summer
-    hottest_hour_index = summer_data.idxmax()
+    hottest_hour_index = temperature_data.idxmax()
 
     # Extract the date of the hottest day
     hottest_month = month[hottest_hour_index]

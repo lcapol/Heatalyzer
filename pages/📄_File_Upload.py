@@ -22,6 +22,15 @@ if 'selected_building' not in st.session_state:
 if 'building_folders' not in st.session_state:
         st.session_state['building_folders'] = []
 
+if 'summer_months' not in st.session_state:
+    st.session_state.summer_months = [6,7,8]
+
+if 'metrics_thresholds' not in st.session_state:
+    st.session_state.metrics_thresholds = {'Humidex': 35, 'SET': 30, 'Temperature': 30, 'PMV': 1.5, 'WBGT': 23}
+
+if 'start_month' not in st.session_state:
+    st.session_state.start_month = 1
+
 def main():
 
     st.markdown("""
@@ -38,20 +47,63 @@ def main():
     st.markdown('**Note**: Up to 5 weather files are supported.')
 
 
+    months = ['January', 'February', 'March', 'April', 'May', 'June',
+              'July', 'August', 'September', 'October', 'November', 'December']
 
-    # Select the baseline weather file
+
+    if weather_files and building_files:
+        st.markdown('---')
+        st.markdown('Select start month for simulation (simulations run for the whole year):')
+        start_month = st.selectbox('Start Month', ['January', 'June'], index=0)
+        st.session_state.start_month = months.index(start_month) + 1
+
     if weather_files:
         st.markdown('---')
 
+        # Select the baseline weather file
+
         baseline_weather_file = st.radio("Select a Baseline Weather File:",
                                          [file.name for file in weather_files], key='baseline_weather')
+        st.markdown('---')
+
+        st.markdown('Select the months considered as summer:')
+        start_month = st.selectbox('Start Month', months, index=5)  # Default to June
+        end_month = st.selectbox('End Month', months, index=7)  # Default to September
+
+        start_index = months.index(start_month) + 1
+        end_index = months.index(end_month) + 1
+
+        if end_index < start_index:
+            summer_months_indices = list(range(start_index, 13)) + list(range(1, end_index + 1))
+        else:
+            # Creating an array of month indices in the selected range
+            summer_months_indices = list(range(start_index, end_index + 1))
+
+        st.session_state.summer_months = summer_months_indices
 
         st.markdown('---')
 
+    if weather_files and building_files:
+        st.markdown('Set Thermal Comfort Thresholds:')
+        col1, col2, col3, col4, col5 = st.columns(5)
+        with col1:
+            st.session_state.metrics_thresholds['Humidex'] = st.number_input('Humidex', value=35.0, format="%.1f")
+        with col2:
+            st.session_state.metrics_thresholds['SET'] = st.number_input('SET', value=30.0,format="%.1f")
+        with col3:
+            st.session_state.metrics_thresholds['Temperature'] = st.number_input('Temperature', value=30.0, format="%.1f")
+        with col4:
+            st.session_state.metrics_thresholds['PMV'] = st.number_input('PMV', value=1.5, format="%.1f")
+        with col5:
+            st.session_state.metrics_thresholds['WBGT'] = st.number_input('WBGT', value=23.0, format="%.1f")
+
+        st.markdown('---')
+
+
     # Simulate button
     if st.button('Simulate'):
-        if len(weather_files) > 5:
-            st.error('Please upload no more than 5 weather files.')
+        if len(weather_files) > 5 or len(building_files) > 10:
+            st.error('Please upload no more than 10 building and 5 weather files.')
         elif validate_files(building_files, '.idf') and validate_files(weather_files, '.epw'):
             baseline_file = next((file for file in weather_files if file.name == baseline_weather_file), None).name
             st.session_state.baseline_file=os.path.splitext(baseline_file)[0]

@@ -5,6 +5,9 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from thermofeel import calculate_wbt
+from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
+import matplotlib.pyplot as plt
+
 
 #from app_preprocessing import preprocess
 #from app_BEM import BEM_simulation
@@ -25,7 +28,10 @@ result_types = ['Thermal comfort during hottest weeks', 'Distribution of differe
 comparison_types = ['Degree and Exceedance hours', 'Peak Humidex values']
 
 metrics = ['Temperature', 'Humidex', 'SET', 'PMV', 'WBGT']
-metrics_thresholds = [30, 35, 30, 1.5, 23]
+
+if 'metrics_thresholds' not in st.session_state:
+    st.session_state.metrics_thresholds = {'Humidex': 35, 'SET': 30, 'Temperature': 30, 'PMV': 1.5, 'WBGT': 23}
+
 
 def main():
     st.markdown("# Results")
@@ -171,27 +177,42 @@ def peak_humidex_comparison():
 
 def dh_eh_comparison():
 
-    tc_model = st.radio("Select Thermal Comfort Model", ["Humidex", "SET"])
+    tc_model = st.radio("Select Thermal Comfort Model", ["Humidex", "SET", "Temperature"])
     time_period = st.radio("Select Time Period", ["Annual", "Maximum Week"])
     metric_type = st.radio("Select Metric Type", ["Degree hours", "Exceedance hours"])
 
     dh_eh_file_path = "data/dh_eh_data.h5"
 
     # Function call to create the table based on selections
-    fig = create_dh_eh_table(dh_eh_file_path, tc_model, time_period, metric_type)
-
-    st.plotly_chart(fig)
+    create_dh_eh_table(dh_eh_file_path, tc_model, time_period, metric_type)
 
 def hottest_weeks_surviability(building):
 
-    # Extract survivability line
-    file_path_elderly = '/Users/Livia/Library/Mobile Documents/com~apple~CloudDocs/Cambridge University/Thesis/Model/Input Data/Survivability/rh_version_NewSurvivability_limits_Night-Indoors_6H-65_over.csv'
-    file_path_young = '/Users/Livia/Library/Mobile Documents/com~apple~CloudDocs/Cambridge University/Thesis/Model/Input Data/Survivability/rh_version_NewSurvivability_limits_Night-Indoors_6H-Young_adult.csv'
-    survivability_elderly = pd.read_csv(file_path_elderly)
-    survivability_young = pd.read_csv(file_path_young)
+    #Extract survivability line
+    surv_path_elderly = 'pages/survivability_data/rh_version_NewSurvivability_limits_Night-Indoors_3H-65_over.csv'
+    surv_path_young = 'pages/survivability_data/rh_version_NewSurvivability_limits_Night-Indoors_3H-Young_adult.csv'
+    survivability_elderly = pd.read_csv(surv_path_elderly)
+    survivability_young = pd.read_csv(surv_path_young)
 
-    temperature = np.linspace(20, 60, 200)  # Temperature range
-    humidity = np.linspace(0, 100, 200)
+    #Extract liveability line
+    liv_path_elderly = 'pages/survivability_data/rh_version_Liveability_limits_Night-Indoors_3H-65_over.csv'
+    liv_path_young = 'pages/survivability_data/rh_version_Liveability_limits_Night-Indoors_3H-Young_adult.csv'
+    liv_elderly = pd.read_csv(liv_path_elderly)
+    liv_young = pd.read_csv(liv_path_young)
+
+    #Extract liveability ranges
+    mmax_path_elderly = 'pages/survivability_data/rh_Mmax_Livability_Night-Indoors_3H-65_over.csv'
+    mmax_path_young = 'pages/survivability_data/rh_Mmax_Livability_Night-Indoors_3H-Young_adult.csv'
+
+    #Extract survivable but not liveable range
+    surv_not_liv_path_elderly = 'pages/survivability_data/rh_survive_but_not_livable_survivability_Night-Indoors_3H-65_over.csv'
+    surv_not_liv_path_young = 'pages/survivability_data/rh_survive_but_not_livable_survivability_Night-Indoors_3H-Young_adult.csv'
+
+    #temperature = np.linspace(20, 60, 200)  # Temperature range
+    #humidity = np.linspace(0, 100, 200)
+
+    temperature = np.arange(25, 60, 0.1)
+    humidity = np.arange(0.5, 100.5, 0.5)
 
     temp_grid, humid_grid = np.meshgrid(temperature, humidity)
     K = 273.15
@@ -219,11 +240,33 @@ def hottest_weeks_surviability(building):
     selected_weather_files = st.multiselect("Select weather files to display:", weather_files, default=weather_files)
 
     # Checkboxes for WBT and survivability lines
-    st.markdown("""Select survivability limits/ranges to display:""")
+    st.markdown("""Select survivability limits to display:""")
     show_survivability_young= st.checkbox("Show survivability limit line for young (18-40)", True)
     show_survivability_elderly= st.checkbox("Show survivability limit line for elderly (over 65)", True)
     show_wbt_line = st.checkbox("Show WBT of 35°C line", True)
-    show_humidex_range = st.checkbox("Show Humidex ranges", True)
+    selected_option = st.radio("Select liveability ranges to display:", ["Show Humidex ranges", "Show liveability ranges for young (18-40)",
+                                                     "Show liveability ranges for elderly (over 65)"], index=0)
+
+    show_humidex_range = show_liv_elderly = show_liv_young = False
+    if selected_option == "Show Humidex ranges":
+        show_humidex_range = True
+    elif selected_option == "Show liveability ranges for young (18-40)":
+        show_liv_young = True
+    elif selected_option == "Show liveability ranges for elderly (over 65)":
+        show_liv_elderly = True
+
+    if show_liv_young:
+        liv = liv_young
+        title_ending = 'young (18-40)'
+        surv_not_liv_path = surv_not_liv_path_young
+        Mmax_MET = pd.read_csv(mmax_path_young, index_col=0)
+
+    if show_liv_elderly:
+        liv = liv_elderly
+        title_ending = 'elderly(over 65)'
+        surv_not_liv_path = surv_not_liv_path_elderly
+        Mmax_MET = pd.read_csv(mmax_path_elderly, index_col=0)
+        Mmax_MET.iloc[185:, 50:] = np.nan
 
 
     # Plotting
@@ -249,6 +292,74 @@ def hottest_weeks_surviability(building):
             go.Contour(x=temperature, y=humidity, z=wbt_grid, name='WBT of 35\N{DEGREE SIGN}C', showscale=False,
                        legendgrouptitle_text="Survivability limit", legendgroup='group1',
                        contours=dict(type='constraint', value=35, operation='='), line=dict(color='black', width=2)))
+
+    # Add survivable but not liveable region
+    if show_liv_young or show_liv_elderly:
+        fig.add_trace(
+            go.Scatter(x=liv['Tair'], y=liv['rh'], mode='lines', name='Liveability limit ' + title_ending,legendgroup='group3',
+                       legendgrouptitle_text="Liveability limit", showlegend=True, line=dict(color='darkblue', width=2)))
+
+        surv_not_liv = pd.read_csv(surv_not_liv_path, index_col=0)
+        surv_not_liv = surv_not_liv.map(lambda x: 1 if x else None)
+
+        fig.add_trace(
+            go.Heatmap(x=temperature, y=humidity, z=surv_not_liv,
+                       name='Survivable but not liveable (no activity possible without storing heat internally)',
+                       showscale=False,  # Hide the color scale
+                       colorscale=[[0, 'lightgray'], [1, 'lightgray']]))
+
+        fig.add_trace(go.Scatter(
+            x=[None],
+            y=[None],
+            mode='markers',
+            marker=dict(color='lightgray', symbol='square', size=20),
+            showlegend=True,
+            legendgrouptitle_text="Liveability limit",
+            name='Survivable but not liveable <br>(no activity possible without <br>storing heat internally)',
+            legendgroup='group3'
+        ))
+
+        # Add liveability ranges
+        num_colors = 13  # The number of colors to sample
+        colormap = plt.cm.get_cmap('Spectral_r', num_colors)
+        translucent_spectral_r = [
+            [i / (num_colors - 1),
+             'rgba({},{},{},{})'.format(int(rgba[0] * 255), int(rgba[1] * 255), int(rgba[2] * 255), 0.2)]
+            for i, rgba in enumerate(colormap(np.linspace(0, 1, num_colors)))
+        ]
+
+        fig.add_trace(
+            go.Contour(
+                x=temperature,
+                y=humidity,
+                z=Mmax_MET,
+                colorscale=translucent_spectral_r,
+                name='Maximum Metabolic Rate',
+                colorbar=dict(
+                    title='Max Metabolic Rate (METs)',
+                    titleside='top',
+                    len=0.7,
+                    x=1.02,  # Right-aligned
+                    y=0,  # Top-aligned
+                    xanchor='left',  # Anchor the left edge of the colorbar
+                    yanchor='bottom'
+                ),
+
+                contours=dict(
+                    start=1.5,
+                    end=8.0,
+                    size=0.5,
+                    coloring='fill',
+                    showlabels=False,
+                    labelfont=dict(
+                        size=12,
+                        color='black'
+                    )
+                )
+            )
+        )
+
+
 
     if show_humidex_range:
         fig.add_trace(
@@ -308,8 +419,8 @@ def hottest_weeks_surviability(building):
                                    title='Weather scenarios:'),
                       width=1200, height=900)
 
-    fig.update_xaxes(range=[20, 50])
-    fig.update_yaxes(range=[0, 100])
+    fig.update_xaxes(range=[25, 60])
+    fig.update_yaxes(range=[0, 80])
 
     st.plotly_chart(fig)
 
@@ -458,7 +569,7 @@ def hottest_weeks_plot(building):
 
             fig.add_trace(go.Scatter(x=x_values, y=data, xaxis="x1", line_dash='solid', name=weather,line=dict(color=colors[i]), showlegend=False), row=k + 1, col=1)
 
-        fig.add_hline(y=metrics_thresholds[k], row=k + 1, col=1, line_width=1.5, line_dash="dash", line_color='black',opacity=1)
+        fig.add_hline(y=st.session_state.metrics_thresholds[metric], row=k + 1, col=1, line_width=1.5, line_dash="dash", line_color='black',opacity=1)
 
     # to update x-axis
     x_values = x_values[::24]
@@ -525,16 +636,6 @@ def create_dh_eh_table(dh_eh_file_path, tc_model, time_period, metric_type):
 
     # Reading data from HDF and creating a table
     all_data = []
-    buildings = st.session_state.building_folders
-    all_zones = np.unique([value for values in st.session_state.zones.values() for value in values])
-
-    # Filter by Building
-    selected_buildings = st.multiselect('Select Buildings:', buildings, default=buildings)
-    selected_zones = st.multiselect('Select Zones:', all_zones, default=all_zones)
-
-    if selected_buildings == [] or selected_zones==[]:
-        st.error('Please choose at least one building and zone.')
-        return go.Figure(go.Table())
 
     show_leeds = False
 
@@ -543,7 +644,8 @@ def create_dh_eh_table(dh_eh_file_path, tc_model, time_period, metric_type):
         idx = 1
     elif time_period == "Maximum Week" and metric_type == "Degree hours":
         idx = 2
-        show_leeds = st.radio("Show Archetype Zones over LEED's Threshold (120 SET Dh))", ["Yes", "No"]) == "Yes"
+        if tc_model == 'SET':
+            show_leeds = st.radio("Show Archetype Zones over LEED's passive survivability threshold (120 SET Dh)", ["Yes", "No"]) == "Yes"
     elif time_period == "Maximum Week" and metric_type == "Exceedance hours":
         idx = 3
 
@@ -553,10 +655,6 @@ def create_dh_eh_table(dh_eh_file_path, tc_model, time_period, metric_type):
             building_key = building_key.lstrip('/')
             building_data = store[building_key]
             building_folder, zone, weather, metric = building_key.split('/')
-            if building_folder not in selected_buildings:
-                continue
-            if zone not in selected_zones:
-                continue
             if metric == tc_model:
                 data = {
                     'Building': building_folder,
@@ -573,6 +671,35 @@ def create_dh_eh_table(dh_eh_file_path, tc_model, time_period, metric_type):
     pivot_df = df.pivot_table(index=['Building', 'Zone'], columns='Weather', values=metric_type)
     pivot_df = pivot_df.reset_index()
 
+    # Ag-Grid Configuration
+    gb = GridOptionsBuilder.from_dataframe(pivot_df)
+
+    # Set grid options for larger text and headers
+    gb.configure_default_column(groupable=True, value=True, enableRowGroup=True, aggFunc='sum', editable=True)
+
+
+    for col in pivot_df.columns[2:]:  # Skip the first two columns (Building and Zone)
+        if show_leeds:
+            gb.configure_column(col, cellStyle=color_formatter_js())
+        else:
+            gb.configure_column(col)
+
+    gb.configure_grid_options(headerHeight=50)  # Adjust header height if needed
+
+    gb.configure_grid_options(
+        domLayout='autoHeight',  # Use 'normal' layout for scrolling
+        pagination=False
+    )
+    # Create Ag-Grid
+    gridOptions = gb.build()
+    theme = 'alpine'
+
+    AgGrid(pivot_df, gridOptions=gridOptions, theme=theme,fit_columns_on_grid_load=True, height=400, allow_unsafe_jscode=True)
+
+    return
+
+    ####OLD
+
     # Header with weather files
     header_values = list(pivot_df.columns)
     header_values[0] = "<b>Building</b>"  # Bold for Building
@@ -587,16 +714,33 @@ def create_dh_eh_table(dh_eh_file_path, tc_model, time_period, metric_type):
         cells=dict(values=cell_values, align='left', font=dict(color='darkblue', size=11),
        # Conditional Formatting
        format=[
-           [{"font": {"color": "red", "bold": True}} if val >= 120 else {} for val in column]
-           if time_period == "Maximum Week" and metric_type == "Degree hours" and show_leeds else {}
-           for column in cell_values
+           # No formatting for the first two columns
+           [{} for val in column] if col_index < 2 else
+           # Conditional formatting for the rest of the columns
+           [{"font": {"color": "red", "bold": True}} if float(val) >= 120 else {} for val in column]
+           if show_leeds else [{} for val in column]
+           for col_index, column in enumerate(cell_values)
        ]
         )
     )])
     fig.update_layout(width=800, height=600, title='Comparison of Degree and Exceedance hours')
 
-
     return fig
+
+def color_formatter_js():
+    return JsCode("""
+    function(params) {
+        if (params.value >= 120) {
+            return {
+                'color': 'red',
+            };
+        } else {
+            return {
+                'color': 'black',
+            };
+        }
+    };
+    """)
 
 if __name__ == "__main__":
     main()

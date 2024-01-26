@@ -19,8 +19,7 @@ iddfile = '/Applications/EnergyPlus-23-1-0/Energy+.idd'
 
 metrics = ['Temperature', 'Relative Humidity' , 'Humidex', 'SET', 'PMV', 'WBGT']
 
-metrics_dh_eh = ['Humidex', 'SET']
-dh_eh_thresholds = {'Humidex': 35, 'SET': 30}
+metrics_dh_eh = ['Humidex', 'SET', 'Temperature']
 
 #Variables to read for thermal comfort models
 temp_var = "Zone Mean Air Temperature"
@@ -160,8 +159,16 @@ def postprocess(output_folders, building_folders, weather_folders):
             # Look for hottest week in the year and extract time steps for the hottest week
             file = epw()
             file.read(weather_path)
-            epw_data = file.dataframe['Dry Bulb Temperature']
-            (hottest_start, hottest_end), temp_extreme_weeks = find_most_extreme_week(epw_data)
+            months = ['January', 'February', 'March', 'April', 'May', 'June',
+                      'July', 'August', 'September', 'October', 'November', 'December']
+
+            (start_month, start_day), temp_extreme_weeks = find_most_extreme_week(file)
+            start_month = months[start_month-1]
+            start_day = f"{start_day:02d}"
+            formatted_date = f"{start_month} {start_day} 01:00"
+            hottest_week_start = time_step.index(formatted_date)
+            hottest_start = hottest_week_start - 7*24
+            hottest_end = hottest_week_start + 2*7*24
 
             for zone in zones_inh:
                 temp_column = zone + ':' + temp_var
@@ -179,6 +186,13 @@ def postprocess(output_folders, building_folders, weather_folders):
                 hottest_temp_data = temp_data[hottest_start:hottest_end]
                 hottest_data_dicts['Temperature'][zone][weather_folder] = hottest_temp_data
 
+                # Calculate Temperature Degree and Exceedance hours
+                auc_input = [max(0, element - st.session_state.metrics_thresholds['Temperature']) for element in temp_data]
+                auc_temp_val = trapz(auc_input)
+                days_over = sum(elem > 0 for elem in auc_input)
+                auc_temp_max, max_days_over = find_week_with_max_total(auc_input)
+                dh_eh_dicts['Temperature'][zone][weather_folder] = (round(auc_temp_val, 2), days_over, round(auc_temp_max, 2), max_days_over)
+
                 # Extract humidity data form output
                 hum_idx = output.columns.str.startswith(hum_column)
                 hum_data = output.loc[:, hum_idx].values.flatten()
@@ -195,7 +209,7 @@ def postprocess(output_folders, building_folders, weather_folders):
                 annual_data_dicts['Humidex'][zone][weather_folder] = humidex_data
 
                 #Calculate Humidex Degree and Exceedance hours
-                auc_input = [max(0, element - dh_eh_thresholds['Humidex']) for element in humidex_data]
+                auc_input = [max(0, element - st.session_state.metrics_thresholds['Humidex']) for element in humidex_data]
                 auc_humidex_val = trapz(auc_input)
                 days_over = sum(elem > 0 for elem in auc_input)
                 auc_humidex_max, max_days_over = find_week_with_max_total(auc_input)
@@ -211,7 +225,7 @@ def postprocess(output_folders, building_folders, weather_folders):
                 hottest_data_dicts['SET'][zone][weather_folder] = hottest_set_data
 
                 # Calculate SET Degree and Exceedance hours
-                auc_input = [max(0, element - dh_eh_thresholds['SET']) for element in set_data]
+                auc_input = [max(0, element - st.session_state.metrics_thresholds['SET']) for element in set_data]
                 auc_set_val = trapz(auc_input)
                 days_over = sum(elem > 0 for elem in auc_input)
                 auc_set_max, max_days_over = find_week_with_max_total(auc_input)
@@ -314,7 +328,8 @@ def postprocess(output_folders, building_folders, weather_folders):
     status_text.text(f'Processing complete. {total_simulations} simulations run.')
 
 def filter_summer_months(time_step):
-    summer_months = [6, 7, 8]  # June, July, August
+    summer_months = st.session_state.summer_months
+    print(summer_months)
     month_filter = [datetime.strptime(x, "%B %d %H:%M").month in summer_months for x in time_step]
     return month_filter
 
@@ -406,15 +421,17 @@ def dew_from_hum(temperature, rel_humdity):
 
 
 #Identify most extreme (mean) week for the variable of interest
-def find_most_extreme_week(housing_data):
+def find_most_extreme_week(file):
+
+    epw_data = file.dataframe['Dry Bulb Temperature']
 
     # Initialize variables for tracking the hottest week
-    extreme_week = housing_data[0:7 * 24]
+    extreme_week = epw_data[0:7 * 24]
     mean_extreme_week = extreme_week.mean()  # Initialize with the mean of the first week
     current_week_start = 0  # Index of the first day in the current 7-day window
 
-    for i in range(7 * 24, len(housing_data), 24):        # Calculate the mean temperature for the next 7 days
-        current_week_mean = housing_data[i - 7 * 24:i].mean()
+    for i in range(7 * 24, len(epw_data), 24):        # Calculate the mean temperature for the next 7 days
+        current_week_mean = epw_data[i - 7 * 24:i].mean()
 
         # Check if the current mean is greater than the current hottest week mean
         if current_week_mean > mean_extreme_week:
@@ -427,9 +444,12 @@ def find_most_extreme_week(housing_data):
     time_start = current_week_start -7*24
     time_end=current_week_end + 7*24
 
-    extreme_weeks = housing_data[time_start:time_end]
+    start_month = file.dataframe['Month'].iloc[current_week_start]
+    start_day = file.dataframe['Day'].iloc[current_week_start]
 
-    return (time_start, time_end), extreme_weeks
+    extreme_weeks = epw_data[time_start:time_end]
+
+    return (start_month, start_day), extreme_weeks
 
 
 if __name__ == '__main__':

@@ -1,8 +1,9 @@
 ##Preprocess Building Data for EnergyPlus simulation
-
+import streamlit
 from eppy import idf_helpers
 from eppy.modeleditor import IDF
 import sys
+import streamlit as st
 
 
 #IDD file to use
@@ -41,11 +42,18 @@ def define_runperiod(idf_file):
     runperiods = idf_file.idfobjects['RUNPERIOD']
 
     # Keep only the first RUNPERIOD object and set its dates
+
+    start_month = st.session_state.start_month
+    if start_month == 1:
+        end_month = 12
+    else:
+        end_month = 5
+
     if runperiods:
         first_runperiod = runperiods[0]
-        first_runperiod.Begin_Month = 1
+        first_runperiod.Begin_Month = start_month
         first_runperiod.Begin_Day_of_Month = 1
-        first_runperiod.End_Month = 12
+        first_runperiod.End_Month = end_month
         first_runperiod.End_Day_of_Month = 31
 
         # Delete all other RUNPERIOD objects
