@@ -21,7 +21,7 @@ git clone https://github.com/lcapol/Heatalyzer
 ```
 2. **Install Dependencies**: Navigate to the cloned reposiory directory and install the required dependencies using: 
 ```bash
-pip install -r requirements.txt.
+pip install -r requirements.txt
 ```
 3. **EnergyPlus Requirement**: Ensure that EnergyPlus version 23.1.0 is installed for compatibility with file formats.
 
