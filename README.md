@@ -17,7 +17,7 @@ The application includes a results section for analysis, focused on thermal comf
 
 1. **Clone the Repository**: 
 ```bash
-git clone https://github.com/lcapol/Heatalyzer`
+git clone https://github.com/lcapol/Heatalyzer
 ```
 2. **Install Dependencies**: Navigate to the cloned reposiory directory and install the required dependencies using: 
 ```bash
