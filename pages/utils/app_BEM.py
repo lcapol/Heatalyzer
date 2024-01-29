@@ -4,12 +4,11 @@ import os.path
 import streamlit as st
 import sys
 
+#Specify path to energyplus executable
+eplus_path = '/Applications/EnergyPlus-23-1-0/energyplus'
 
 #Receives an array of output location paths where each location contains an in.idf and weather.epw file and runs them all
 def BEM_simulation(simulation_folders):
-
-    #Specify path to energyplus executable
-    eplus_path = '/Applications/EnergyPlus-23-1-0/energyplus'
 
     # Total number of simulations to run
     total_simulations = len(simulation_folders)
@@ -26,7 +25,7 @@ def BEM_simulation(simulation_folders):
         status_text.text(f'Running simulation {completed_simulations + 1} of {total_simulations}...')
 
         #Only run EnergyPlus for this configuration if it has not been run before
-        if os.path.exists(path + '/eplusout.csv'):
+        if os.path.exists(path + '/eplusout.csv') and not st.session_state.rerun_all:
             completed_simulations += 1
             continue
 

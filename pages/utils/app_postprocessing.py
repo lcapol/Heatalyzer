@@ -149,9 +149,9 @@ def postprocess(output_folders, building_folders, weather_folders):
             time_step = output.loc[:, 'Date/Time'].values
             time_step = transform_date(time_step)
 
-            annual_file_path = data_path + '/annual_data.h5'  # Change this to your desired file path
-            summer_file_path = data_path + '/summer_data.h5'  # Change this to your desired file path
-            hottest_file_path = data_path + '/hottest_weeks_data.h5'  # Change this to your desired file path
+            annual_file_path = data_path + '/annual_data.h5'
+            summer_file_path = data_path + '/summer_data.h5'
+            hottest_file_path = data_path + '/hottest_weeks_data.h5'
             summer_diff_file_path = data_path + '/summer_differences_data.h5'
             dh_eh_file_path = data_path + '/dh_eh_data.h5'
             max_hum_file_path = data_path + '/max_hum_data.h5'
@@ -452,15 +452,6 @@ def find_most_extreme_week(file):
     return (start_month, start_day), extreme_weeks
 
 
-if __name__ == '__main__':
-
-    output_folders = sys.argv[1]
-    building_folders = sys.argv[2]
-    weather_folders = sys.argv[3]
-
-    postprocess(output_folders, building_folders, weather_folders)
-
-
 #Calculate indoor WBGT temperature
 def calculate_wbgt_lis(temperature, humidity, mrt, wind_speed=0.15):
 
@@ -486,3 +477,13 @@ def scale_windspeed(va, h):
     vh = va * np.log10(h / 0.01) * c
 
     return vh
+
+
+
+if __name__ == '__main__':
+
+    output_folders = sys.argv[1]
+    building_folders = sys.argv[2]
+    weather_folders = sys.argv[3]
+
+    postprocess(output_folders, building_folders, weather_folders)
