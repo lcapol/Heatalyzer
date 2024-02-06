@@ -22,24 +22,25 @@ if 'current_page' not in st.session_state:
 if 'selected_building' not in st.session_state:
     st.session_state['selected_building'] = None
 
-if 'building_folders' not in st.session_state:
-        st.session_state['building_folders'] = []
-
-result_types = ['Thermal comfort during hottest weeks', 'Distribution shifts compared to baseline', 'Survivability and liveability during hottest weeks']
-comparison_types = ['Degree and Exceedance hours', 'Peak Humidex values']
-
-metrics = ['Temperature', 'Humidex', 'SET', 'PMV', 'WBGT']
+if 'building_names' not in st.session_state:
+        st.session_state['building_names'] = []
 
 if 'metrics_thresholds' not in st.session_state:
     st.session_state.metrics_thresholds = {'Humidex': 35, 'SET': 30, 'Temperature': 30, 'PMV': 1.5, 'WBGT': 23}
 
+result_types = ['Thermal comfort during hottest weeks', 'Summer distribution shifts compared to baseline', 'Survivability and liveability during hottest weeks']
+
+
+comparison_types = ['Degree and Exceedance hours', 'Peak Humidex values']
+
+metrics = ['Temperature', 'Humidex', 'SET', 'PMV', 'WBGT']
 
 def main():
     st.markdown("# Results")
     #st.sidebar.header("Results")
     st.write("""Please choose the building, result type and building zone of interest.""")
 
-    building_options = st.session_state.building_folders + ['Comparisons across buildings']
+    building_options = st.session_state.building_names + ['Comparisons across buildings']
 
     if st.session_state.current_page == 'results':
         option = st.sidebar.selectbox("Choose building", building_options)
@@ -52,9 +53,10 @@ def main():
 
 
 def building_comparison_page(option):
-    st.write("### " + option)
 
     comparison_type = st.sidebar.selectbox("Choose comparison type", comparison_types)
+    st.write("### " + option)
+    st.write("##### " + comparison_type)
 
     if comparison_type == 'Degree and Exceedance hours':
         dh_eh_comparison()
@@ -62,27 +64,26 @@ def building_comparison_page(option):
         peak_humidex_comparison()
 
 def building_details_page(building):
-    st.write("### " + building)
     result_type = st.sidebar.selectbox("Choose result type", result_types)
+
+    st.write("### " + building)
+    st.write("##### " + result_type)
 
     if result_type == 'Thermal comfort during hottest weeks':
         hottest_weeks_plot(building)
-    elif result_type == 'Distribution shifts compared to baseline':
+    elif result_type == 'Summer distribution shifts compared to baseline':
         summer_diff_distr_plot(building)
     elif  result_type == 'Survivability and liveability during hottest weeks':
-        hottest_weeks_surviability(building)
-    else:
-        st.write("To be added...")
-
+        hottest_week_surviability(building)
 
 def peak_humidex_comparison():
 
-    max_hum_file_path = 'data/max_hum_data.h5'
+    max_hum_file_path = 'Output/data/max_hum_data.h5'
     weather_folders = st.session_state.weather_folders
-    building_folders = st.session_state.building_folders
+    building_names = st.session_state.building_names
     all_zones = np.unique([value for values in st.session_state.zones.values() for value in values])
 
-    selected_buildings = st.multiselect("Select buildings to display:", building_folders, default=building_folders)
+    selected_buildings = st.multiselect("Select buildings to display:", building_names, default=building_names)
     selected_weather_files = st.multiselect("Select weather files to display:", weather_folders, default=weather_folders)
     selected_zones = st.multiselect("Select zones to display:", all_zones, default=all_zones)
 
@@ -130,7 +131,8 @@ def peak_humidex_comparison():
         if weather_folder not in selected_weather_files:
             continue
 
-        for i, building in enumerate(st.session_state.building_folders):
+        for i, building in enumerate(st.session_state.building_names):
+
             symbol = symbols[i]
 
             if building not in selected_buildings:
@@ -153,7 +155,8 @@ def peak_humidex_comparison():
                                  marker=dict(size=7, color=colors[k], symbol='square',
                                              line=dict(width=2, color=colors[k]))))
 
-    for i, building in enumerate(st.session_state.building_folders):
+    for i, building in enumerate(st.session_state.building_names):
+
         fig.add_trace(go.Scatter(x=[None], y=[None], mode="markers", name=building,
                                  legendgrouptitle_text="Buildings", legendgroup='group2',
                                  marker=dict(size=7, color='black', symbol=symbols[i],
@@ -178,16 +181,16 @@ def peak_humidex_comparison():
 
 def dh_eh_comparison():
 
-    tc_model = st.radio("Select Thermal Comfort Model", ["Humidex", "SET", "Temperature"])
-    time_period = st.radio("Select Time Period", ["Annual", "Maximum Week"])
-    metric_type = st.radio("Select Metric Type", ["Degree hours", "Exceedance hours"])
+    tc_model = st.radio("Select thermal comfort model", ["Humidex", "SET", "Temperature"])
+    time_period = st.radio("Select time period", ["Annual", "Maximum Week"])
+    metric_type = st.radio("Select metric type", ["Degree hours", "Exceedance hours"])
 
-    dh_eh_file_path = "data/dh_eh_data.h5"
+    dh_eh_file_path = "Output/data/dh_eh_data.h5"
 
     # Function call to create the table based on selections
     create_dh_eh_table(dh_eh_file_path, tc_model, time_period, metric_type)
 
-def hottest_weeks_surviability(building):
+def hottest_week_surviability(building):
 
     #Extract survivability line
     surv_path_elderly = 'pages/survivability_data/rh_version_NewSurvivability_limits_Night-Indoors_3H-65_over.csv'
@@ -228,7 +231,7 @@ def hottest_weeks_surviability(building):
     zones = st.session_state.zones[building]
     zone = st.sidebar.selectbox("Choose zone", zones)
 
-    hottest_file_path = 'data/hottest_weeks_data.h5'
+    hottest_file_path = 'Output/data/hottest_weeks_data.h5'
 
     colors = ['green', 'orange', 'red', 'purple', 'royalblue']
 
@@ -246,8 +249,8 @@ def hottest_weeks_surviability(building):
 
     # Checkboxes for WBT and survivability lines
     st.markdown("""Select survivability limits to display:""")
-    show_survivability_young= st.checkbox("Show survivability limit line for young (18-40)", True)
-    show_survivability_elderly= st.checkbox("Show survivability limit line for elderly (over 65)", False)
+    show_survivability_young= st.checkbox("Show survivability limit for young (18-40)", True)
+    show_survivability_elderly= st.checkbox("Show survivability limit for elderly (over 65)", False)
     show_wbt_line = st.checkbox("Show WBT of 35°C line", False)
     selected_option = st.radio("Select liveability ranges to display:", ["Show liveability ranges for young (18-40)",
                                                      "Show liveability ranges for elderly (over 65)", "Show Humidex ranges"], index=0)
@@ -314,7 +317,7 @@ def hottest_weeks_surviability(building):
 
         set3_colors = px.colors.qualitative.Set3
         muted_yellow = set3_colors[11]  # 'rgba(248, 248, 228, 0.3)' #'rgb(60, 60, 60)'
-        muted_yellow = muted_yellow.replace('rgb', 'rgba').replace(')', f', {0.1})')
+        muted_yellow = muted_yellow.replace('rgb', 'rgba').replace(')', f', {0.2})')
 
         # Add survivable but not liveable region
         fig.add_trace(
@@ -337,7 +340,7 @@ def hottest_weeks_surviability(building):
 
         # Add not survivable region
         muted_orange = set3_colors[5]  # 'rgba(248,228,228, 0.3)' #'rgb(60, 60, 60)'
-        muted_orange = muted_orange.replace('rgb', 'rgba').replace(')', f', {0.1})')
+        muted_orange = muted_orange.replace('rgb', 'rgba').replace(')', f', {0.2})')
         fig.add_trace(
             go.Heatmap(x=temperature, y=humidity, z=not_surv,
                        name='Not survivable',
@@ -368,16 +371,6 @@ def hottest_weeks_surviability(building):
                 colorscale=grey_scale,
                 name='Maximum Metabolic Rate',
                 showscale=False,
-
-                #colorbar=dict(
-                #    title='Safe sustained activity <br>(Maximum METs)',
-                #    titleside='top',
-                #    len=0.7,
-                #    x=1.02,  # Right-aligned
-                #    y=0,  # Top-aligned
-                #    xanchor='left',  # Anchor the left edge of the colorbar
-                #    yanchor='bottom'
-                #),
 
                 contours=dict(
                     start=1,
@@ -418,8 +411,6 @@ def hottest_weeks_surviability(building):
                     tickvals=[1, 2, 3, 4, 5, 6, 7, 7.5],  # Values on the colorbar
                     ticktext=['8', '7', '6 ------------------------', '5', '4', '3 ------------------------', '2', '1.5 ---------------------']
                 ),
-
-
                 contours=dict(
                     start=1,
                     end=8,
@@ -519,7 +510,7 @@ def hottest_weeks_surviability(building):
         ))
 
     # Set plot titles and labels
-    fig.update_layout(title=zone +': Survivability over hottest weeks',
+    fig.update_layout(#title=zone +': Survivability over hottest weeks',
                       xaxis_title='Dry Bulb Air Temperature (°C)',
                       yaxis_title='Relative Humidity (%)', template='simple_white',
                       legend2=dict(yanchor="top", xanchor="center", y=-0.12, x=0.5, orientation='h',
@@ -536,7 +527,7 @@ def summer_diff_distr_plot(building):
 
     zones = st.session_state.zones[building]
     zone = st.sidebar.selectbox("Choose zone", zones)
-    summer_diff_file_path = 'data/summer_differences_data.h5'
+    summer_diff_file_path = 'Output/data/summer_differences_data.h5'
     weather_files = st.session_state.weather_folders
 
     if len(weather_files) == 1:
@@ -568,8 +559,9 @@ def summer_diff_distr_plot(building):
         yaxis_nr = 'yaxis' + str(i + 1)
         fig['layout'][yaxis_nr].update(title=metrics[i])
 
-    fig.update_layout(template='simple_white', width=1000, height=700, violinmode='group',
-                      title=zone + ': Differences in Summer Distribution to Baseline')
+    fig.update_layout(template='simple_white', width=1000, height=700, violinmode='group')
+                      #title=zone + ': Differences in Summer Distribution to Baseline')
+
     fig.update_xaxes(linecolor='lightgrey', showticklabels=False, ticks="")
     fig.add_hline(y=0, line_width=1, line_dash="solid", line_color="black", opacity=1)
     fig.update_yaxes(secondary_y=False, gridcolor='lightgrey', showgrid=True)
@@ -606,7 +598,7 @@ def summer_distribution_plot(building):
 
     summer_months = [6,7,8]
 
-    annual_file_path = 'data/annual_data.h5'
+    annual_file_path = 'Output/data/annual_data.h5'
 
     colors = ['green', 'orange', 'red', 'purple', 'royalblue']
 
@@ -661,7 +653,7 @@ def hottest_weeks_plot(building):
     zones = st.session_state.zones[building]
     zone = st.sidebar.selectbox("Choose zone", zones)
 
-    hottest_file_path = 'data/hottest_weeks_data.h5'
+    hottest_file_path = 'Output/data/hottest_weeks_data.h5'
 
     x_values = np.arange(1, 21 * 24 + 1)
     colors = ['green', 'orange', 'red', 'purple', 'royalblue']
@@ -694,7 +686,7 @@ def hottest_weeks_plot(building):
     fig.update_xaxes(tickvals=x_values, ticktext=ticktext)
 
     fig.update_layout(
-        title=zone + ': Thermal comfort during hottest summer weeks for different weather scenarios and thermal comfort models',
+        #title=zone + ': Thermal comfort during hottest summer weeks for different weather scenarios and thermal comfort models',
         width=1500, height=900, template='simple_white')
 
     fig.update_yaxes(gridcolor='lightgrey', showgrid=True)
@@ -756,7 +748,7 @@ def create_dh_eh_table(dh_eh_file_path, tc_model, time_period, metric_type):
     elif time_period == "Maximum Week" and metric_type == "Degree hours":
         idx = 2
         if tc_model == 'SET':
-            show_leeds = st.radio("Show Archetype Zones over LEED's passive survivability threshold (120 SET Dh)", ["Yes", "No"]) == "Yes"
+            show_leeds = st.radio("Highlight archetype zones that surpass LEED's passive survivability threshold (120 SET Dh)", ["Yes", "No"]) == "Yes"
             if show_leeds and st.session_state.metrics_thresholds['SET'] != 30:
                 st.error(f"SET threshold is set to {round(st.session_state.metrics_thresholds['SET'], 1)} and not 30 as specified by LEED's passive survivability pilot")
     elif time_period == "Maximum Week" and metric_type == "Exceedance hours":
@@ -767,10 +759,10 @@ def create_dh_eh_table(dh_eh_file_path, tc_model, time_period, metric_type):
         for building_key in store.keys():
             building_key = building_key.lstrip('/')
             building_data = store[building_key]
-            building_folder, zone, weather, metric = building_key.split('/')
+            building_name, zone, weather, metric = building_key.split('/')
             if metric == tc_model:
                 data = {
-                    'Building': building_folder,
+                    'Building': building_name,
                     'Zone': zone,
                     'Weather': weather,
                     metric_type: building_data[idx]
@@ -779,17 +771,13 @@ def create_dh_eh_table(dh_eh_file_path, tc_model, time_period, metric_type):
 
     # Creating a DataFrame for the table
     df = pd.DataFrame(all_data)
-    ##
-    # Pivoting the DataFrame
+
     pivot_df = df.pivot_table(index=['Building', 'Zone'], columns='Weather', values=metric_type)
     pivot_df = pivot_df.reset_index()
 
-    # Ag-Grid Configuration
     gb = GridOptionsBuilder.from_dataframe(pivot_df)
 
-    # Set grid options for larger text and headers
     gb.configure_default_column(groupable=True, value=True, enableRowGroup=True, aggFunc='sum', editable=True)
-
 
     for col in pivot_df.columns[2:]:  # Skip the first two columns (Building and Zone)
         if show_leeds:
@@ -797,13 +785,13 @@ def create_dh_eh_table(dh_eh_file_path, tc_model, time_period, metric_type):
         else:
             gb.configure_column(col)
 
-    gb.configure_grid_options(headerHeight=50)  # Adjust header height if needed
+    gb.configure_grid_options(headerHeight=50)
 
     gb.configure_grid_options(
-        domLayout='autoHeight',  # Use 'normal' layout for scrolling
+        domLayout='autoHeight',
         pagination=False
     )
-    # Create Ag-Grid
+
     gridOptions = gb.build()
     theme = 'alpine'
 
@@ -811,34 +799,6 @@ def create_dh_eh_table(dh_eh_file_path, tc_model, time_period, metric_type):
 
     return
 
-    ####OLD
-
-    # Header with weather files
-    header_values = list(pivot_df.columns)
-    header_values[0] = "<b>Building</b>"  # Bold for Building
-    header_values[1] = "<b>Zone</b>"  # Bold for Zone
-
-    # Cells with values
-    cell_values = [pivot_df[col] for col in pivot_df.columns]
-
-    # Create Plotly Table
-    fig = go.Figure(data=[go.Table(
-        header=dict(values=header_values, align='left', font=dict(color='black', size=12)),
-        cells=dict(values=cell_values, align='left', font=dict(color='darkblue', size=11),
-       # Conditional Formatting
-       format=[
-           # No formatting for the first two columns
-           [{} for val in column] if col_index < 2 else
-           # Conditional formatting for the rest of the columns
-           [{"font": {"color": "red", "bold": True}} if float(val) >= 120 else {} for val in column]
-           if show_leeds else [{} for val in column]
-           for col_index, column in enumerate(cell_values)
-       ]
-        )
-    )])
-    fig.update_layout(width=800, height=600, title='Comparison of Degree and Exceedance hours')
-
-    return fig
 
 def color_formatter_js():
     return JsCode("""

@@ -14,6 +14,7 @@ from thermofeel import calculate_wbt, calculate_bgt, calculate_humidex
 import streamlit as st
 import sys
 import shutil
+from pythermalcomfort import humidex
 
 iddfile = '/Applications/EnergyPlus-23-1-0/Energy+.idd'
 
@@ -53,7 +54,7 @@ def postprocess(output_folders, building_folders, weather_folders):
 
     IDF.setiddname(iddfile)
 
-    data_path = 'data'
+    data_path = 'Output/data'
 
     if os.path.exists(data_path):
         # Remove all files and folders in the directory
@@ -81,6 +82,7 @@ def postprocess(output_folders, building_folders, weather_folders):
 
     for building_folder in building_folders:
 
+        _, building_name = building_folder.split('/')
 
         building_path = building_folder + '/' + weather_folders[0] + '/in.idf'
         idf = IDF(building_path)
@@ -99,7 +101,7 @@ def postprocess(output_folders, building_folders, weather_folders):
 
             zones_inh.append(zone)
 
-        st.session_state.zones[building_folder] = zones_inh
+        st.session_state.zones[building_name] = zones_inh
 
         #Initialize the dictionaries
         annual_data_dicts = {}
@@ -281,7 +283,7 @@ def postprocess(output_folders, building_folders, weather_folders):
         for metric, data_dict in annual_data_dicts.items():
             for zone, data_dict2 in data_dict.items():
                 for weather, data in data_dict2.items():
-                    hdf_key = f'{building_folder}/{zone}/{weather}/{metric}'
+                    hdf_key = f'{building_name}/{zone}/{weather}/{metric}'
                     df = pd.DataFrame(data)
                     df.to_hdf(annual_file_path, key=hdf_key, mode='a')
 
@@ -289,7 +291,7 @@ def postprocess(output_folders, building_folders, weather_folders):
         for metric, data_dict in summer_data_dicts.items():
             for zone, data_dict2 in data_dict.items():
                 for weather, data in data_dict2.items():
-                    hdf_key = f'{building_folder}/{zone}/{weather}/{metric}'
+                    hdf_key = f'{building_name}/{zone}/{weather}/{metric}'
                     df = pd.DataFrame(data)
                     df.to_hdf(summer_file_path, key=hdf_key, mode='a')
 
@@ -297,7 +299,7 @@ def postprocess(output_folders, building_folders, weather_folders):
         for metric, data_dict in hottest_data_dicts.items():
             for zone, data_dict2 in data_dict.items():
                 for weather, data in data_dict2.items():
-                    hdf_key = f'{building_folder}/{zone}/{weather}/{metric}'
+                    hdf_key = f'{building_name}/{zone}/{weather}/{metric}'
                     df = pd.DataFrame(data)
                     df.to_hdf(hottest_file_path, key=hdf_key, mode='a')
 
@@ -305,7 +307,7 @@ def postprocess(output_folders, building_folders, weather_folders):
         for metric, data_dict in summer_differences_dicts.items():
             for zone, data_dict2 in data_dict.items():
                 for weather, data in data_dict2.items():
-                    hdf_key = f'{building_folder}/{zone}/{weather}/{metric}'
+                    hdf_key = f'{building_name}/{zone}/{weather}/{metric}'
                     df = pd.DataFrame(data)
                     df.to_hdf(summer_diff_file_path, key=hdf_key, mode='a')
 
@@ -313,13 +315,13 @@ def postprocess(output_folders, building_folders, weather_folders):
         for metric, data_dict in dh_eh_dicts.items():
             for zone, data_dict2 in data_dict.items():
                 for weather, data in data_dict2.items():
-                    hdf_key = f'{building_folder}/{zone}/{weather}/{metric}'
+                    hdf_key = f'{building_name}/{zone}/{weather}/{metric}'
                     df = pd.DataFrame([data]) # data contains (annual_dh, annual_eh, max_dh, max_eh)
                     df.to_hdf(dh_eh_file_path, key=hdf_key, mode='a')
 
         for zone, data_dict2 in max_hum_dicts.items():
             for weather, data in data_dict2.items():
-                hdf_key = f'{building_folder}/{zone}/{weather}/Humidex'
+                hdf_key = f'{building_name}/{zone}/{weather}/Humidex'
                 df = pd.DataFrame([data])  # data contains (max_humidex, max_hum_temp, max_hum_rh)
                 df.to_hdf(max_hum_file_path, key=hdf_key, mode='a')
 
@@ -379,7 +381,7 @@ def humidex_list(temp_list, rel_hum_list, max_cond=False):
 
     for (i, temp) in enumerate(temp_list):
         hum = rel_hum_list[i]
-        humidex_val = humidex(temp, hum)
+        humidex_val = humidex(temp, hum, round=False)['humidex']
 
         if humidex_val > max_hum:
             max_hum = humidex_val
@@ -394,6 +396,7 @@ def humidex_list(temp_list, rel_hum_list, max_cond=False):
         return humidex_lis
 
 ##Calculates the humidex from provided temperature (in Celcius) and relative humidity
+'''
 def humidex(temperature, rel_humidity):
 
     #calculate dewpoint from temperature and humidity
@@ -418,7 +421,7 @@ def dew_from_hum(temperature, rel_humdity):
     dewpoint_temp = numer / denom
 
     return dewpoint_temp
-
+'''
 
 #Identify most extreme (mean) week for the variable of interest
 def find_most_extreme_week(file):

@@ -22,6 +22,9 @@ if 'selected_building' not in st.session_state:
 if 'building_folders' not in st.session_state:
         st.session_state['building_folders'] = []
 
+if 'building_names' not in st.session_state:
+        st.session_state['building_names'] = []
+
 if 'summer_months' not in st.session_state:
     st.session_state.summer_months = [6,7,8]
 
@@ -33,6 +36,10 @@ if 'start_month' not in st.session_state:
 
 if 'rerun_all' not in st.session_state:
     st.session_state.rerun_all = False
+
+
+months = ['January', 'February', 'March', 'April', 'May', 'June','July', 'August', 'September', 'October', 'November', 'December']
+
 
 def main():
 
@@ -48,10 +55,6 @@ def main():
     weather_files = st.file_uploader('Choose Weather Data Files', accept_multiple_files=True, type='epw',
                                      key='weather')
     st.markdown('**Note**: Up to 5 weather files are supported.')
-
-
-    months = ['January', 'February', 'March', 'April', 'May', 'June',
-              'July', 'August', 'September', 'October', 'November', 'December']
 
 
     if weather_files:
@@ -81,7 +84,6 @@ def main():
         if end_index < start_index:
             summer_months_indices = list(range(start_index, 13)) + list(range(1, end_index + 1))
         else:
-            # Creating an array of month indices in the selected range
             summer_months_indices = list(range(start_index, end_index + 1))
 
         st.session_state.summer_months = summer_months_indices
@@ -104,7 +106,8 @@ def main():
 
         st.markdown('---')
 
-        st.markdown('**Note**: Only scenarios not simulated before will be run. If you would like to rerun all simulations, select the re-run option. Otherwise, all scenarios with the same weather and building names will not be simulated again.')
+        st.markdown('**Note**: Only scenarios not simulated before will be run. If you would like to run all simulations again, select the re-run option. If not selected, all scenarios with the same weather and building file names will not be simulated again.')
+
         rerun_all = st.checkbox('Re-run simulations', value=False)
         st.session_state.rerun_all = rerun_all
 
@@ -125,35 +128,24 @@ def main():
                 st.error('File validation failed. Please upload correct file types.')
 
 
-def results_page(building_folders):
-    st.title("Simulation Results")
-
-    for building in building_folders:
-        if st.button(f"View results for {building}"):
-            st.session_state.selected_building = building
-            st.session_state.current_page = 'building_details'
-
-    if st.button("Back to Home"):
-        st.session_state.current_page = 'home'
-
-def building_details_page(building_name):
-    st.title(f"Results for {building_name}")
-    # Display the results for the selected building
-    # ...
-
-    if st.button("Back to Results"):
-        st.session_state.current_page = 'results'
-
 def validate_files(files, extension):
     return all(file.name.endswith(extension) for file in files) if files else False
 
 def create_folders_and_move_files(building_files, weather_files):
+
+    #Define and create folder for outputs
+    output_folder = 'Output'
+    os.makedirs(output_folder, exist_ok=True)
+
     simulation_folders = []
     building_folders = []
     weather_folders = []
+    building_names = []
 
     for building_file in building_files:
-        building_folder = os.path.splitext(building_file.name)[0]
+        building_name = os.path.splitext(building_file.name)[0]
+        building_names.append(building_name)
+        building_folder = os.path.join(output_folder, building_name)
         building_folders.append(building_folder)
         os.makedirs(building_folder, exist_ok=True)
 
@@ -180,21 +172,21 @@ def create_folders_and_move_files(building_files, weather_files):
     st.session_state.weather_folders = weather_folders
     st.session_state.building_folders = building_folders
     st.session_state.simulation_folders = simulation_folders
+    st.session_state.building_names = building_names
+
 
 
 def run_simulation():
 
-    #Preprocess building input files to produce output variables for thermal comfort computations
+    #Preprocess building input files to configure variables for thermal comfort computations
     preprocess(st.session_state.simulation_folders)
 
-    # Run BEM Simulation for the specified folders
+    #Run EnergyPlus simulations for the input building and weather file combinations
     BEM_simulation(st.session_state.simulation_folders)
 
     st.success('Simulation finished. Starting processing results...')
 
-    #Create output visualizations and store them
-    #delete all
-
+    #Postprocess the output to extract data for the result visualizations
     postprocess(st.session_state.simulation_folders, st.session_state.building_folders, st.session_state.weather_folders)
 
 if __name__ == "__main__":

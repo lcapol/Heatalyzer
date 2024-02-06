@@ -127,18 +127,10 @@ def add_thermal_comfort(idf_file):
     idf_file.newidfobject('Schedule:Compact',
                           Name='CLOTHING_SCH',
                           Schedule_Type_Limits_Name="Any Number",
-                          Field_1='Through: 03/31',
+                          Field_1='Through: 12/31',
                           Field_2='For: AllDays',
                           Field_3='Until: 24:00',
-                          Field_4=str(1.0),
-                          Field_5='Through: 09/30',
-                          Field_6='For: AllDays',
-                          Field_7='Until: 24:00',
-                          Field_8=str(0.5),
-                          Field_9='Through: 12/31',
-                          Field_10='For: AllDays',
-                          Field_11='Until: 24:00',
-                          Field_12=str(1.0)
+                          Field_4=str(0.5)
     )
 
     #define air velocity schedule
