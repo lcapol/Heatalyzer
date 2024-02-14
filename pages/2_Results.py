@@ -9,11 +9,6 @@ from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
 import plotly.express as px
 import matplotlib.pyplot as plt
 
-
-#from app_preprocessing import preprocess
-#from app_BEM import BEM_simulation
-#from app_postprocessing import postprocess
-
 st.set_page_config(page_title='Results')
 
 if 'current_page' not in st.session_state:
@@ -30,14 +25,13 @@ if 'metrics_thresholds' not in st.session_state:
 
 result_types = ['Thermal comfort during hottest weeks', 'Summer distribution shifts compared to baseline', 'Survivability and liveability during hottest weeks']
 
-
 comparison_types = ['Degree and Exceedance hours', 'Peak Humidex values']
 
 metrics = ['Temperature', 'Humidex', 'SET', 'PMV', 'WBGT']
 
 def main():
     st.markdown("# Results")
-    #st.sidebar.header("Results")
+
     st.write("""Please choose the building, result type and building zone of interest.""")
 
     building_options = st.session_state.building_names + ['Comparisons across buildings']
@@ -796,9 +790,6 @@ def create_dh_eh_table(dh_eh_file_path, tc_model, time_period, metric_type):
     theme = 'alpine'
 
     AgGrid(pivot_df, gridOptions=gridOptions, theme=theme,fit_columns_on_grid_load=True, height=400, allow_unsafe_jscode=True)
-
-    return
-
 
 def color_formatter_js():
     return JsCode("""

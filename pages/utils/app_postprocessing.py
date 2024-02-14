@@ -71,6 +71,14 @@ def postprocess(output_folders, building_folders, weather_folders):
         # Create the directory if it does not exist
         os.makedirs(data_path)
 
+    #Output paths for all data files
+    annual_file_path = data_path + '/annual_data.h5'
+    summer_file_path = data_path + '/summer_data.h5'
+    hottest_file_path = data_path + '/hottest_weeks_data.h5'
+    summer_diff_file_path = data_path + '/summer_differences_data.h5'
+    dh_eh_file_path = data_path + '/dh_eh_data.h5'
+    max_hum_file_path = data_path + '/max_hum_data.h5'
+
     total_simulations = len(output_folders)
     completed_simulations = 0
 
@@ -142,21 +150,12 @@ def postprocess(output_folders, building_folders, weather_folders):
             status_text.text(f'Processing simulation {completed_simulations + 1} of {total_simulations}...')
 
             simulation_folder = building_folder + '/' + weather_folder
-
-            building_path = simulation_folder + '/in.idf'
             weather_path = simulation_folder + '/weather.epw'
-
             output_csv_path = simulation_folder + '/eplusout.csv'
+
             output = pd.read_csv(output_csv_path)
             time_step = output.loc[:, 'Date/Time'].values
             time_step = transform_date(time_step)
-
-            annual_file_path = data_path + '/annual_data.h5'
-            summer_file_path = data_path + '/summer_data.h5'
-            hottest_file_path = data_path + '/hottest_weeks_data.h5'
-            summer_diff_file_path = data_path + '/summer_differences_data.h5'
-            dh_eh_file_path = data_path + '/dh_eh_data.h5'
-            max_hum_file_path = data_path + '/max_hum_data.h5'
 
             # Look for hottest week in the year and extract time steps for the hottest week
             file = epw()
@@ -279,55 +278,27 @@ def postprocess(output_folders, building_folders, weather_folders):
                     summer_diff = np.array(current_metric_data)[summer_filter] - np.array(baseline_metric_data)[summer_filter]
                     summer_differences_dicts[metric][zone][weather_folder] = summer_diff
 
-        #Save annual data in hdf file
-        for metric, data_dict in annual_data_dicts.items():
-            for zone, data_dict2 in data_dict.items():
-                for weather, data in data_dict2.items():
-                    hdf_key = f'{building_name}/{zone}/{weather}/{metric}'
-                    df = pd.DataFrame(data)
-                    df.to_hdf(annual_file_path, key=hdf_key, mode='a')
-
-        # Save summer data in hdf file
-        for metric, data_dict in summer_data_dicts.items():
-            for zone, data_dict2 in data_dict.items():
-                for weather, data in data_dict2.items():
-                    hdf_key = f'{building_name}/{zone}/{weather}/{metric}'
-                    df = pd.DataFrame(data)
-                    df.to_hdf(summer_file_path, key=hdf_key, mode='a')
-
-        #Save data of hottest weeks in hdf file
-        for metric, data_dict in hottest_data_dicts.items():
-            for zone, data_dict2 in data_dict.items():
-                for weather, data in data_dict2.items():
-                    hdf_key = f'{building_name}/{zone}/{weather}/{metric}'
-                    df = pd.DataFrame(data)
-                    df.to_hdf(hottest_file_path, key=hdf_key, mode='a')
-
-        # Save the summer differences data
-        for metric, data_dict in summer_differences_dicts.items():
-            for zone, data_dict2 in data_dict.items():
-                for weather, data in data_dict2.items():
-                    hdf_key = f'{building_name}/{zone}/{weather}/{metric}'
-                    df = pd.DataFrame(data)
-                    df.to_hdf(summer_diff_file_path, key=hdf_key, mode='a')
-
-        # Save the dh and eh values
-        for metric, data_dict in dh_eh_dicts.items():
-            for zone, data_dict2 in data_dict.items():
-                for weather, data in data_dict2.items():
-                    hdf_key = f'{building_name}/{zone}/{weather}/{metric}'
-                    df = pd.DataFrame([data]) # data contains (annual_dh, annual_eh, max_dh, max_eh)
-                    df.to_hdf(dh_eh_file_path, key=hdf_key, mode='a')
-
-        for zone, data_dict2 in max_hum_dicts.items():
-            for weather, data in data_dict2.items():
-                hdf_key = f'{building_name}/{zone}/{weather}/Humidex'
-                df = pd.DataFrame([data])  # data contains (max_humidex, max_hum_temp, max_hum_rh)
-                df.to_hdf(max_hum_file_path, key=hdf_key, mode='a')
+        save_data_to_hdf(annual_data_dicts, annual_file_path, building_name)
+        save_data_to_hdf(summer_data_dicts, summer_file_path, building_name)
+        save_data_to_hdf(hottest_data_dicts, hottest_file_path, building_name)
+        save_data_to_hdf(summer_differences_dicts, summer_diff_file_path, building_name)
+        save_data_to_hdf(dh_eh_dicts, dh_eh_file_path, building_name, is_dh_eh=True)
+        save_data_to_hdf(max_hum_dicts, max_hum_file_path, building_name, is_max_hum=True)
 
     # Complete the progress bar
     progress_bar.progress(1.0)
     status_text.text(f'Processing complete. {total_simulations} simulations run.')
+
+def save_data_to_hdf(data_dicts, file_path, building_name, is_dh_eh=False, is_max_hum=False):
+    for metric, data_dict in data_dicts.items():
+        for zone, data_dict2 in (data_dict.items() if not is_max_hum else [(metric, data_dict)]):
+            for weather, data in data_dict2.items():
+                hdf_key = f'{building_name}/{zone}/{weather}/{"Humidex" if is_max_hum else metric}'
+                if is_dh_eh or is_max_hum:
+                    df = pd.DataFrame([data]) # Handle special case for dh/eh and max_hum
+                else:
+                    df = pd.DataFrame(data)
+                df.to_hdf(file_path, key=hdf_key, mode='a')
 
 def filter_summer_months(time_step):
     summer_months = st.session_state.summer_months
@@ -339,36 +310,35 @@ def filter_summer_months(time_step):
 #iterate over the whole array and find week with maximum total and report degrees over for that one
 def find_week_with_max_total(array):
 
-    week_start = 0
-    week_end = week_hours = 24*7
-
+    week_hours = 24 * 7
     arr_len = len(array)
+    array_extended = array * 2  # Extend the array to handle wrap-around
 
-    week_data = array[week_start:week_end]
-    max_total = sum(week_data)
-    max_days_over = days_over = sum([int(item > 0) for item in week_data])
+    # Initialize the first window
+    week_data = array_extended[:week_hours]
+    week_total = sum(week_data)
+    days_over = sum(int(item > 0) for item in week_data)
 
-    prev_week_total = max_total
+    max_total = week_total
+    max_days_over = days_over
 
-    for i in range(arr_len-week_hours-1):
-        first_item = array[week_start]
+    for week_start in range(1, arr_len):
+        # Update the start and end of the window
+        week_end = week_start + week_hours
 
-        week_start+=1
-        week_end+=1
+        # Update totals by subtracting the first item and adding the new item
+        first_item = array_extended[week_start - 1]
+        new_item = array_extended[week_end - 1]
 
-        new_item = array[week_end]
-
-        week_total = prev_week_total - first_item + new_item
+        week_total = week_total - first_item + new_item
         days_over = days_over - int(first_item > 0) + int(new_item > 0)
 
+        # Update max values if this window is better
         if week_total > max_total:
             max_total = week_total
             max_days_over = days_over
 
-        prev_week_total = week_total
-
     return max_total, max_days_over
-
 
 
 def humidex_list(temp_list, rel_hum_list, max_cond=False):
@@ -394,34 +364,6 @@ def humidex_list(temp_list, rel_hum_list, max_cond=False):
         return humidex_lis, (max_hum, max_hum_temp, max_hum_rh)
     else:
         return humidex_lis
-
-##Calculates the humidex from provided temperature (in Celcius) and relative humidity
-'''
-def humidex(temperature, rel_humidity):
-
-    #calculate dewpoint from temperature and humidity
-    dewpoint_temp = dew_from_hum(temperature, rel_humidity)
-
-    #calculate dewpoint temperature in kelvin
-    Kelvin = 273.15
-    dewpoint_temp_K = dewpoint_temp + Kelvin
-
-    #calculate humidex
-    e = 6.11 * math.exp(5417.7530 * ((1/273.16) - (1/dewpoint_temp_K)))
-    h = (0.5555)*(e - 10.0)
-    humidex = temperature + h
-
-    return humidex
-
-##Calculates the dewpoint temperature from provided temperature (in Celcius) and humidity
-def dew_from_hum(temperature, rel_humdity):
-
-    numer = 243.04 * (math.log(rel_humdity / 100) + ((17.625 * temperature) / (243.04 + temperature)))
-    denom = (17.625 - math.log(rel_humdity / 100) - ((17.625 * temperature) / (243.04 + temperature)))
-    dewpoint_temp = numer / denom
-
-    return dewpoint_temp
-'''
 
 #Identify most extreme (mean) week for the variable of interest
 def find_most_extreme_week(file):
@@ -472,15 +414,6 @@ def calculate_wbgt_lis(temperature, humidity, mrt, wind_speed=0.15):
         wbgt_lis.append(wbgt)
 
     return wbgt_lis
-
-def scale_windspeed(va, h):
-
-    #c = 1 / np.log10(10 / 0.01)
-    c = 0.333333333333
-    vh = va * np.log10(h / 0.01) * c
-
-    return vh
-
 
 
 if __name__ == '__main__':

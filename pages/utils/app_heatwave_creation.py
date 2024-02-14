@@ -10,28 +10,6 @@ epw_cols = names=['Year','Month','Day','Hour','Minute','Data Source and Uncertai
 
 from datetime import datetime, timedelta
 
-#Function that provides the dates (month and day) of the following and previous day given some date (year, month ,day)
-def get_previous_and_next_dates(input_year, input_day, input_month, days_delta, include_previous=True, include_next=True):
-    # Create a datetime object with the given day and month
-    input_date = datetime(year=input_year, month=input_month, day=input_day)
-
-    previous_date = next_date = input_date
-
-    if include_previous:
-        #Calculate the previous day
-        previous_date = input_date - timedelta(days=days_delta)
-
-    if include_next:
-        #Calculate the next day
-        next_date = input_date + timedelta(days=days_delta)
-
-    #Extract the month and day for the previous and next dates
-    previous_month, previous_day = previous_date.month, previous_date.day
-    next_month, next_day = next_date.month, next_date.day
-
-    return previous_month, previous_day, next_month, next_day
-
-
 #Function that provides the dates (year, month and day) of the following day given some date (year, month and day)
 def get_next_date(input_year, input_day, input_month, days_delta):
     # Create a datetime object with the given day and month
@@ -126,7 +104,7 @@ def create_future_heatwave(tmy_file, heatwave_file, future_file, output_file):
 
     #the first 5 columns stay the same and for the remaining ones we always add the difference of the heatwave-TMY to the typical future data
 
-    #in our heat data the following columns have missing data, so they will remain the same as for the 2080 TMY
+    #in our heat data the following columns have missing data, so they will remain the same as for the Future TMY
     miss_data_idx = [5, 10, 11, 16, 17, 18, 19, 24, 25, 26, 27, 28, 29, 31, 32, 34]
     date_idx = [0, 1, 2, 3, 4]
 
@@ -153,6 +131,7 @@ def create_future_heatwave(tmy_file, heatwave_file, future_file, output_file):
         elif epw_cols[i] == 'Opaque Sky Cover (used if Horizontal IR Intensity missing)':
             fut_heat_data['Opaque Sky Cover (used if Horizontal IR Intensity missing)'] = fut_heat_data['Opaque Sky Cover (used if Horizontal IR Intensity missing)'].clip(lower=0, upper=10)
 
+    fut_heat_df.dataframe = fut_heat_data
     fut_heat_df.write(output_file)
 
 
