@@ -49,22 +49,18 @@ def main():
 
     st.subheader('Upload Building Data Files (.idf)')
     building_files = st.file_uploader('Choose Building Data Files', accept_multiple_files=True, type='idf')
-    st.markdown('**Note**: Only IDF files of version 23.1.0 are supported. Up to 10 building files are supported.')
+    st.markdown('**Note**: The tool supports IDF files of version 23.1.0. Additionally, you can upload a maximum of 10 building files for processing.')
 
     st.subheader('Upload Weather Data Files (.epw)')
     weather_files = st.file_uploader('Choose Weather Data Files', accept_multiple_files=True, type='epw',
                                      key='weather')
-    st.markdown('**Note**: Up to 5 weather files are supported.')
-
+    st.markdown('**Note**: You can upload a maximum of 5 weather files at a time for analysis.')
 
     if weather_files:
         st.markdown('---')
 
-        # Select the baseline weather file
-
         baseline_weather_file = st.radio("Select a Baseline Weather File:",
                                          [file.name for file in weather_files], key='baseline_weather')
-
 
     if weather_files and building_files:
         st.markdown('---')
@@ -75,8 +71,8 @@ def main():
         st.markdown('---')
 
         st.markdown('Select the months considered as summer:')
-        start_month = st.selectbox('Start Month', months, index=5)  # Default to June
-        end_month = st.selectbox('End Month', months, index=7)  # Default to September
+        start_month = st.selectbox('Start Month', months, index=5)  #Default to June
+        end_month = st.selectbox('End Month', months, index=7)  #Default to September
 
         start_index = months.index(start_month) + 1
         end_index = months.index(end_month) + 1
@@ -89,7 +85,6 @@ def main():
         st.session_state.summer_months = summer_months_indices
 
         st.markdown('---')
-
 
         st.markdown('Set Thermal Comfort Thresholds:')
         col1, col2, col3, col4, col5 = st.columns(5)
@@ -106,14 +101,12 @@ def main():
 
         st.markdown('---')
 
-        st.markdown('**Note**: Only scenarios not simulated before will be run. If you would like to run all simulations again, select the re-run option. If not selected, all scenarios with the same weather and building file names will not be simulated again.')
+        st.markdown('**Note**: The tool is designed to avoid rerunning previously simulated scenarios. Should you wish to rerun all simulations, including those previously executed, please select the "Re-run All" option. Without this selection, scenarios sharing identical weather and building file names as past simulations will not be processed again.')
 
         rerun_all = st.checkbox('Re-run simulations', value=False)
         st.session_state.rerun_all = rerun_all
 
-        # Simulate button
         if st.button('Simulate'):
-
             if len(weather_files) > 5 or len(building_files) > 10:
                 st.error('Please upload no more than 10 building and 5 weather files.')
             elif validate_files(building_files, '.idf') and validate_files(weather_files, '.epw'):
@@ -126,7 +119,6 @@ def main():
                 st.success('Processing finished. You can view the results!')
             else:
                 st.error('File validation failed. Please upload correct file types.')
-
 
 def validate_files(files, extension):
     return all(file.name.endswith(extension) for file in files) if files else False
@@ -142,6 +134,7 @@ def create_folders_and_move_files(building_files, weather_files):
     weather_folders = []
     building_names = []
 
+    #Create one output folder for each building and copy over building and weather data for that simulation
     for building_file in building_files:
         building_name = os.path.splitext(building_file.name)[0]
         building_names.append(building_name)
@@ -173,7 +166,6 @@ def create_folders_and_move_files(building_files, weather_files):
     st.session_state.building_folders = building_folders
     st.session_state.simulation_folders = simulation_folders
     st.session_state.building_names = building_names
-
 
 
 def run_simulation():

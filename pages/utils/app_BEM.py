@@ -2,25 +2,24 @@
 import os
 import os.path
 import streamlit as st
-import sys
 
-#Specify path to energyplus executable
+#Specify path to EnergyPlus executable
 eplus_path = '/Applications/EnergyPlus-23-1-0/energyplus'
 
-#Receives an array of output location paths where each location contains an in.idf and weather.epw file and runs them all
+#Receives an array of output locations where each location contains an in.idf and weather.epw file and runs them all
 def BEM_simulation(simulation_folders):
 
-    # Total number of simulations to run
+    #Total number of simulations to run
     total_simulations = len(simulation_folders)
     completed_simulations = 0
 
-    # Initialize Streamlit progress bar
+    #Initialize Streamlit progress bar
     progress_bar = st.progress(0)
     status_text = st.empty()
 
     for path in simulation_folders:
 
-        # Update the progress bar
+        #Update the progress bar
         progress_bar.progress(completed_simulations / total_simulations)
         status_text.text(f'Running simulation {completed_simulations + 1} of {total_simulations}...')
 
@@ -32,10 +31,8 @@ def BEM_simulation(simulation_folders):
         weather_path = path + '/weather.epw'
         building_path = path + '/in.idf'
 
-        #specify path to energyplus executable
+        #Specify and execute command for EnergyPlus simulation
         path = eplus_path + ' -d ' + path.replace(" ", "\ ") + ' -w ' + weather_path.replace(" ", "\ ") + ' -r ' + building_path.replace(" ", "\ ")
-
-        #execute the command in the shell
         os.system(path)
 
         completed_simulations += 1
@@ -43,9 +40,3 @@ def BEM_simulation(simulation_folders):
     #Complete the progress bar
     progress_bar.progress(1.0)
     status_text.text(f'Simulation complete. {total_simulations} simulations run.')
-
-
-if __name__ == '__main__':
-
-    simulation_folders = sys.argv[1]
-    BEM_simulation(simulation_folders)

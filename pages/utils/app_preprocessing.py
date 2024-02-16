@@ -1,10 +1,7 @@
 ##Preprocess Building Data for EnergyPlus simulation
-import streamlit
 from eppy import idf_helpers
 from eppy.modeleditor import IDF
-import sys
 import streamlit as st
-
 
 #IDD file to use
 iddfile = '/Applications/EnergyPlus-23-1-0/Energy+.idd'
@@ -19,14 +16,13 @@ def preprocess(simulation_folders):
 
         simulation_folder = simulation_folders[i]
 
-        ##Preprocess Building Data
-
-        #Explore/Modify the given idf file
+        #Preprocess Building Data by modifying the given idf file
         idf_file = IDF(simulation_folder + '/in.idf')
 
+        #Define simulation to run either from June - May or January - December (depending on location)
         define_runperiod(idf_file)
 
-        #Remove all variables that are output and only insert the ones I am interested in for my simulations
+        #Remove all output variables and only insert the ones of interest to my simulations
         define_output(idf_file)
 
         #Add specifications to enable thermal comfort calculation (PMV, SET, WBGT)
@@ -38,11 +34,10 @@ def preprocess(simulation_folders):
 
 def define_runperiod(idf_file):
 
-    # Get all RUNPERIOD objects
+    #Get all RUNPERIOD objects
     runperiods = idf_file.idfobjects['RUNPERIOD']
 
-    # Keep only the first RUNPERIOD object and set its dates
-
+    #Keep only the first RUNPERIOD object and set its dates
     start_month = st.session_state.start_month
     if start_month == 1:
         end_month = 12
@@ -56,7 +51,7 @@ def define_runperiod(idf_file):
         first_runperiod.End_Month = end_month
         first_runperiod.End_Day_of_Month = 31
 
-        # Delete all other RUNPERIOD objects
+        #Delete all other RUNPERIOD objects
         for runperiod in runperiods[1:]:
             idf_file.removeidfobject(runperiod)
 
@@ -73,7 +68,6 @@ def define_output(idf_file):
             idf_file.popidfobject(obj, 0)
 
     #Specify the output values EnergyPlus should report for our thermal comfort models
-
     idf_file.newidfobject('OUTPUT:VARIABLE', Key_Value="*",
                           Variable_Name="Zone Mean Air Temperature",
                           Reporting_Frequency="Hourly")
@@ -99,22 +93,22 @@ def define_output(idf_file):
                           Reporting_Frequency="Hourly")
 
 
-#Add necessary assumtions for SET and PMV thermal comfort models
+#Add necessary assumptions for SET and PMV thermal comfort models
 def add_thermal_comfort(idf_file):
 
     people = idf_file.idfobjects['People']
 
-    # Names of schedules to be added or replaced
+    #Names of schedules to be added or replaced
     schedule_names = ['WORK_EFF_SCH', 'CLOTHING_SCH', 'AIR_VELO_SCH']
 
-    # Remove existing schedules with the same names
+    #Remove existing schedules with the same names
     for schedule_name in schedule_names:
         schedules = idf_file.idfobjects['SCHEDULE:COMPACT']
         for schedule in schedules:
             if schedule.Name == schedule_name:
                 idf_file.removeidfobject(schedule)
 
-    # Define working efficiency level schedule
+    #Define working efficiency level schedule
     idf_file.newidfobject('Schedule:Compact',
                           Name='WORK_EFF_SCH',
                           Schedule_Type_Limits_Name="Any Number",
@@ -133,7 +127,7 @@ def add_thermal_comfort(idf_file):
                           Field_4=str(0.5)
     )
 
-    #define air velocity schedule
+    #Define air velocity schedule
     idf_file.newidfobject('Schedule:Compact',
                           Name='AIR_VELO_SCH',
                           Schedule_Type_Limits_Name="Any Number",
@@ -153,9 +147,4 @@ def add_thermal_comfort(idf_file):
         people_obj.Thermal_Comfort_Model_1_Type = 'FANGER'
         people_obj.Thermal_Comfort_Model_2_Type = 'PIERCE'
 
-
-if __name__ == '__main__':
-
-    simulation_folders = sys.argv[1]
-    preprocess(simulation_folders)
 

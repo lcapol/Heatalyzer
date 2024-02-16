@@ -1,5 +1,4 @@
 import streamlit as st
-import os
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -7,7 +6,6 @@ from plotly.subplots import make_subplots
 from thermofeel import calculate_wbt
 from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
 import plotly.express as px
-import matplotlib.pyplot as plt
 
 st.set_page_config(page_title='Results')
 
@@ -23,7 +21,7 @@ if 'building_names' not in st.session_state:
 if 'metrics_thresholds' not in st.session_state:
     st.session_state.metrics_thresholds = {'Humidex': 35, 'SET': 30, 'Temperature': 30, 'PMV': 1.5, 'WBGT': 23}
 
-result_types = ['Thermal comfort during hottest weeks', 'Summer distribution shifts compared to baseline', 'Survivability and liveability during hottest weeks']
+result_types = ['Thermal comfort during hottest weeks', 'Summer distribution shifts', 'Survivability and liveability during hottest week']
 
 comparison_types = ['Degree and Exceedance hours', 'Peak Humidex values']
 
@@ -31,8 +29,6 @@ metrics = ['Temperature', 'Humidex', 'SET', 'PMV', 'WBGT']
 
 def main():
     st.markdown("# Results")
-
-    st.write("""Please choose the building, result type and building zone of interest.""")
 
     building_options = st.session_state.building_names + ['Comparisons across buildings']
 
@@ -65,10 +61,10 @@ def building_details_page(building):
 
     if result_type == 'Thermal comfort during hottest weeks':
         hottest_weeks_plot(building)
-    elif result_type == 'Summer distribution shifts compared to baseline':
+    elif result_type == 'Summer distribution shifts':
         summer_diff_distr_plot(building)
-    elif  result_type == 'Survivability and liveability during hottest weeks':
-        hottest_week_surviability(building)
+    elif  result_type == 'Survivability and liveability during hottest week':
+        hottest_week_survivability(building)
 
 def peak_humidex_comparison():
 
@@ -173,6 +169,7 @@ def peak_humidex_comparison():
 
     st.plotly_chart(fig)
 
+#Visualize Degree and Exceedance Hours for Temperature, Humidex and SET with options for annual or maximum value over one week
 def dh_eh_comparison():
 
     tc_model = st.radio("Select thermal comfort model", ["Humidex", "SET", "Temperature"])
@@ -184,7 +181,8 @@ def dh_eh_comparison():
     # Function call to create the table based on selections
     create_dh_eh_table(dh_eh_file_path, tc_model, time_period, metric_type)
 
-def hottest_week_surviability(building):
+#Visualize liveability and survivability over the hottest summer week
+def hottest_week_survivability(building):
 
     #Extract survivability line
     surv_path_elderly = 'pages/survivability_data/rh_version_NewSurvivability_limits_Night-Indoors_3H-65_over.csv'
@@ -210,25 +208,27 @@ def hottest_week_surviability(building):
     not_surv_path_elderly = 'pages/survivability_data/rh_survivability_array_Night-Indoors_3H-65_over.csv'
     not_surv_path_young = 'pages/survivability_data/rh_survivability_array_Night-Indoors_3H-Young_adult.csv'
 
-    #temperature = np.linspace(20, 60, 200)  # Temperature range
-    #humidity = np.linspace(0, 100, 200)
-
+    #Temperature and relative humidity ranges
     temperature = np.arange(25, 60, 0.1)
     humidity = np.arange(0.5, 100.5, 0.5)
 
+    #Calculate WBT and Humidex grid
     temp_grid, humid_grid = np.meshgrid(temperature, humidity)
     K = 273.15
     wbt_grid = calculate_wbt(temp_grid + K, humid_grid) - K
     humidex_grid = calculate_humidex(temp_grid, humid_grid)
 
     weather_files = st.session_state.weather_folders
+
     zones = st.session_state.zones[building]
     zone = st.sidebar.selectbox("Choose zone", zones)
 
     hottest_file_path = 'Output/data/hottest_weeks_data.h5'
 
+    #Colors for plotting the hourly values of the different scenarios
     colors = ['green', 'orange', 'red', 'purple', 'royalblue']
 
+    #Colorscale for Humidex ranges
     pastel_colorscale = [
         (0, 'rgba(173, 216, 230, 0.4)'),  # Light Blue
         (0.05, 'rgba(144, 238, 144, 0.4)'),  # Light Green
@@ -237,26 +237,30 @@ def hottest_week_surviability(building):
         (1, 'rgba(255, 99, 71, 0.4)')  # Red
     ]
 
-    ##Allow users to select weather files to display WBT/survivability/Humidex lines
-    # User selection for weather files
+    ##Allow users to select weather files to display WBT, Survivability and Liveability, or Humidex lines
+
+    #User selection for weather files
     selected_weather_files = st.multiselect("Select weather files to display:", weather_files, default=weather_files)
 
-    # Checkboxes for WBT and survivability lines
+    #Checkboxes for WBT and survivability lines
     st.markdown("""Select survivability limits to display:""")
-    show_survivability_young= st.checkbox("Show survivability limit for young (18-40)", True)
-    show_survivability_elderly= st.checkbox("Show survivability limit for elderly (over 65)", False)
-    show_wbt_line = st.checkbox("Show WBT of 35°C line", False)
-    selected_option = st.radio("Select liveability ranges to display:", ["Show liveability ranges for young (18-40)",
-                                                     "Show liveability ranges for elderly (over 65)", "Show Humidex ranges"], index=0)
+    show_survivability_young= st.checkbox("Survivability limit for young (18-40)", True)
+    show_survivability_elderly= st.checkbox("Survivability limit for elderly (over 65)", False)
+    show_wbt_line = st.checkbox("WBT of 35°C line", False)
+
+    #Selection for liveability ranges to show. Only one of these ranges can be shown at a time.
+    selected_option = st.radio("Select liveability ranges to display:", ["Liveability ranges for young (18-40)",
+                                                     "Liveability ranges for elderly (over 65)", "Humidex ranges"], index=0)
 
     show_humidex_range = show_liv_elderly = show_liv_young = False
-    if selected_option == "Show Humidex ranges":
+    if selected_option == "Humidex ranges":
         show_humidex_range = True
-    elif selected_option == "Show liveability ranges for young (18-40)":
+    elif selected_option == "Liveability ranges for young (18-40)":
         show_liv_young = True
-    elif selected_option == "Show liveability ranges for elderly (over 65)":
+    elif selected_option == "Liveability ranges for elderly (over 65)":
         show_liv_elderly = True
 
+    #Extract the liveability ranges for the selected option
     if show_liv_young:
         liv = liv_young
         title_ending = 'Young (18-40)'
@@ -274,11 +278,10 @@ def hottest_week_surviability(building):
         not_surv = pd.read_csv(not_surv_path_elderly, index_col=0)
         not_surv = not_surv.map(lambda x: None if x else 1)
 
-
     # Plotting
     fig = go.Figure()
 
-    #Add trace for WBT line
+    #Add trace for WBT 35 line
     if show_wbt_line:
         fig.add_trace(
             go.Contour(x=temperature, y=humidity, z=wbt_grid, name='WBT of 35\N{DEGREE SIGN}C', showscale=False,
@@ -298,10 +301,9 @@ def hottest_week_surviability(building):
                        legendgrouptitle_text="Survivability limit", legendgroup='group1',
                        showlegend=True, line=dict(color='darkred', width=2)))
 
-
+    #Add liveability and survivabiltiy ranges
     if show_liv_young or show_liv_elderly:
 
-        #Add liveability limit
         fig.add_trace(
             go.Scatter(x=liv['Tair'], y=liv['rh'], mode='lines', name=title_ending,legendgroup='group3',
                        legendgrouptitle_text="Liveability limit", showlegend=True, line=dict(color='darkblue', width=2)))
@@ -310,16 +312,14 @@ def hottest_week_surviability(building):
         surv_not_liv = surv_not_liv.map(lambda x: 1 if x else None)
 
         set3_colors = px.colors.qualitative.Set3
-        muted_yellow = set3_colors[11]  # 'rgba(248, 248, 228, 0.3)' #'rgb(60, 60, 60)'
+        muted_yellow = set3_colors[11]
         muted_yellow = muted_yellow.replace('rgb', 'rgba').replace(')', f', {0.2})')
 
         # Add survivable but not liveable region
-        fig.add_trace(
-            go.Heatmap(x=temperature, y=humidity, z=surv_not_liv,
+        fig.add_trace(go.Heatmap(x=temperature, y=humidity, z=surv_not_liv,
                        name='Survivable but not liveable (no activity possible without storing heat internally)',
                        showscale=False,  # Hide the color scale
                        colorscale=[[0, muted_yellow], [1, muted_yellow]]))
-
 
         fig.add_trace(go.Scatter(
             x=[None],
@@ -333,12 +333,11 @@ def hottest_week_surviability(building):
         ))
 
         # Add not survivable region
-        muted_orange = set3_colors[5]  # 'rgba(248,228,228, 0.3)' #'rgb(60, 60, 60)'
+        muted_orange = set3_colors[5]
         muted_orange = muted_orange.replace('rgb', 'rgba').replace(')', f', {0.2})')
-        fig.add_trace(
-            go.Heatmap(x=temperature, y=humidity, z=not_surv,
+        fig.add_trace(go.Heatmap(x=temperature, y=humidity, z=not_surv,
                        name='Not survivable',
-                       showscale=False,  # Hide the color scale
+                       showscale=False,
                        colorscale=[[0, muted_orange], [1, muted_orange]]))
 
         fig.add_trace(go.Scatter(
@@ -352,8 +351,7 @@ def hottest_week_surviability(building):
             legendgroup='group1'
         ))
 
-        # Add liveability ranges
-
+        #Add liveability ranges
         grey_scale = [[0, 'rgb(70, 70, 70)'], [1, 'rgb(255, 255, 255)']]
         grey_scale_r = [[0, 'rgb(255, 255, 255)'], [1, 'rgb(70, 70, 70)']]
 
@@ -380,12 +378,12 @@ def hottest_week_surviability(building):
             )
         )
 
-        # Create a minimal dataset
+        #Create a minimal dataset for enabling creating a custom colorbar
         x = [0, 1]
         y = [0, 1]
         z = [[1, 2], [2, 3]]
 
-        # Create a separate plot to show the colorbar
+        #Create a separate plot to show the colorbar
         fig.add_trace(
             go.Contour(
                 x=x,
@@ -395,7 +393,7 @@ def hottest_week_surviability(building):
                 name='Maximum Metabolic Rate',
                 showscale=True,
                 colorbar=dict(
-                    title='Safe sustained activity<br> (Maximum METs):',
+                    title='Safe sustained activity<br> (Maximum METs)',
                     titleside='top',
                     len=0.7,
                     x=1.02,
@@ -448,11 +446,12 @@ def hottest_week_surviability(building):
             else:
                 fig.add_annotation(annotation)
 
+        #Make sure the colorbar is fully displayed by adjusting the margins
         fig.update_layout(
-            margin=dict(l=50, r=200, t=50, b=50)  # Adjust these values as needed
+            margin=dict(l=50, r=200, t=50, b=50)
         )
 
-
+    #Show Humidex range
     if show_humidex_range:
         fig.add_trace(
             go.Contour(x=temperature, y=humidity, z=humidex_grid, colorscale=pastel_colorscale, showscale=False,
@@ -486,7 +485,7 @@ def hottest_week_surviability(building):
         if weather not in selected_weather_files:
             continue
 
-        #we only use the values for the hottest week
+        #We only display the values for the hottest week (not previous and succeeding week)
         temp = read_data_for_display(hottest_file_path, building, weather, 'Temperature', zone)[7*24:2*7*24]
         rh = read_data_for_display(hottest_file_path, building, weather, 'Relative Humidity', zone)[7*24:2*7*24]
 
@@ -503,12 +502,11 @@ def hottest_week_surviability(building):
             name=weather_files[k]
         ))
 
-    # Set plot titles and labels
-    fig.update_layout(#title=zone +': Survivability over hottest weeks',
-                      xaxis_title='Dry Bulb Air Temperature (°C)',
+    #Set plot titles and labels
+    fig.update_layout(xaxis_title='Dry Bulb Air Temperature (°C)',
                       yaxis_title='Relative Humidity (%)', template='simple_white',
                       legend2=dict(yanchor="top", xanchor="center", y=-0.12, x=0.5, orientation='h',
-                                   title='Weather scenarios:'),
+                      title='Weather scenarios:'),
                       width=1200, height=900)
 
     fig.update_xaxes(range=[25, 60])
@@ -516,7 +514,7 @@ def hottest_week_surviability(building):
 
     st.plotly_chart(fig)
 
-
+#Visualization for the distribution shifts of the hourly summer values compared to the baseline file
 def summer_diff_distr_plot(building):
 
     zones = st.session_state.zones[building]
@@ -524,10 +522,12 @@ def summer_diff_distr_plot(building):
     summer_diff_file_path = 'Output/data/summer_differences_data.h5'
     weather_files = st.session_state.weather_folders
 
+    #Need to uplaod at least two weather scenarios for calculating differences to baseline scenario
     if len(weather_files) == 1:
         st.error("Comparison Not Available: Only one weather file has been uploaded. To enable assessment of distribution shifts, please upload additional weather files.")
         return
 
+    #Colors to use for displaying distribution shifts
     colors = ['orange', 'red', 'purple', 'royalblue']
 
     nr_rows = len(metrics)
@@ -554,13 +554,11 @@ def summer_diff_distr_plot(building):
         fig['layout'][yaxis_nr].update(title=metrics[i])
 
     fig.update_layout(template='simple_white', width=1000, height=700, violinmode='group')
-                      #title=zone + ': Differences in Summer Distribution to Baseline')
-
     fig.update_xaxes(linecolor='lightgrey', showticklabels=False, ticks="")
     fig.add_hline(y=0, line_width=1, line_dash="solid", line_color="black", opacity=1)
     fig.update_yaxes(secondary_y=False, gridcolor='lightgrey', showgrid=True)
 
-    # Add a legend for the weather scenarios
+    #Add a legend for the weather scenarios
     i=0
     for weather_file in weather_files:
         if weather_file == st.session_state.baseline_file:
@@ -584,63 +582,7 @@ def summer_diff_distr_plot(building):
 
     st.plotly_chart(fig)
 
-def summer_distribution_plot(building):
-
-    weather_files = st.session_state.weather_folders
-    zones = st.session_state.zones[building]
-    zone = st.sidebar.selectbox("Choose zone", zones)
-
-    summer_months = [6,7,8]
-
-    annual_file_path = 'Output/data/annual_data.h5'
-
-    colors = ['green', 'orange', 'red', 'purple', 'royalblue']
-
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
-
-    for i, weather in enumerate(weather_files):
-        x_array = []
-        y_array = []
-
-        for metric in metrics:
-            y_values = read_data_for_display(annual_file_path, building, weather, metric, zone)
-            if metric == "PMV":
-                y_values += 25
-            x_array.extend([metric] * len(y_values))
-            y_array.extend(y_values)
-
-        fig.add_trace(go.Violin(x=x_array, y=y_array, box_visible=False, name=weather, line_color=colors[i], showlegend=False))
-
-
-    fig.add_trace(go.Violin(x=[None], y=[None], name="Dummy Data", showlegend=False), secondary_y=True)
-
-    fig.update_traces(meanline_visible=True)
-    # Adjust Layout and save
-    fig.update_layout(template='simple_white', width=1200, height=600, violinmode='group',title=zone +': Distribution of hourly summer thermal comfort model values')
-    fig.update_xaxes(title='Thermal Comfort Model')
-    fig.update_yaxes(title='Temperature, SET, WBGT (\N{DEGREE SIGN}C) and Humidex', secondary_y=False, range=[10, 50],
-                     gridcolor='lightgrey', showgrid=True)
-    fig.update_yaxes(title='PMV', secondary_y=True, overlaying='y', side='right', range=[-15, 25])
-
-    # Add a legend for the weather scenarios
-    for i, weather_file in enumerate(weather_files):
-        line_dash = 'solid'
-        fig.add_trace(go.Scatter(
-            x=[None],
-            y=[None],
-            line_dash=line_dash,
-            mode="markers",
-            legend='legend2',
-            marker=dict(symbol="square", color=colors[i], size=13),
-            name=weather_file,
-            line=dict(color=colors[i])))
-
-    fig.update_layout(
-        legend2=dict(yanchor="top", xanchor="center", y=-0.18, x=0.5, orientation='h', title='Weather scenarios:'))
-
-    st.plotly_chart(fig)
-
-
+#Visualization of the indoor conditions over the hottest week with previous and succeeding weeks
 def hottest_weeks_plot(building):
 
     weather_files = st.session_state.weather_folders
@@ -653,9 +595,8 @@ def hottest_weeks_plot(building):
     colors = ['green', 'orange', 'red', 'purple', 'royalblue']
 
     rows = len(metrics)
-    cols = 1
-
     row_titles = metrics
+    cols = 1
 
     fig = make_subplots(rows=rows, cols=cols, shared_xaxes=True, vertical_spacing=0.05)
 
@@ -668,34 +609,25 @@ def hottest_weeks_plot(building):
 
         fig.add_hline(y=st.session_state.metrics_thresholds[metric], row=k + 1, col=1, line_width=1.5, line_dash="dash", line_color='black',opacity=1)
 
-    # to update x-axis
     x_values = x_values[::24]
-
-    # to update x-axis
     ticktext = 21 * ['']
     ticktext[3] = '     Hottest Week - 1'
     ticktext[10] = '      Hottest Week'
     ticktext[17] = '      Hottest Week + 1'
 
+    fig.update_layout(width=1500, height=900, template='simple_white')
+
     fig.update_xaxes(tickvals=x_values, ticktext=ticktext)
-
-    fig.update_layout(
-        #title=zone + ': Thermal comfort during hottest summer weeks for different weather scenarios and thermal comfort models',
-        width=1500, height=900, template='simple_white')
-
     fig.update_yaxes(gridcolor='lightgrey', showgrid=True)
 
     for k, metric in enumerate(metrics):
         yaxis_nr = 'yaxis' + str(k + 1)
-
-        #tc_range = tc_ranges[tc_model]
-        fig['layout'][yaxis_nr].update(title=row_titles[k])#, range=tc_range)
-
+        fig['layout'][yaxis_nr].update(title=row_titles[k])
 
     fig.add_vline(x=7 * 24, line_width=1, line_color='black', opacity=1)
     fig.add_vline(x=14 * 24, line_width=1, line_color='black', opacity=1)
 
-    # Add a legend for the weather scenarios
+    #Add a legend for the weather scenarios
     for i, weather_file in enumerate(weather_files):
         line_dash = 'solid'
         fig.add_trace(go.Scatter(
@@ -713,7 +645,7 @@ def hottest_weeks_plot(building):
     st.plotly_chart(fig)
 
 
-# Example of reading data for a specific building, weather file, and zone
+#Reading data for a specific building, weather file, metric and zone
 def read_data_for_display(hdf5_file_path, building_folder, weather, metric, zone):
     hdf_key = f'{building_folder}/{zone}/{weather}/{metric}'
     arr = pd.read_hdf(hdf5_file_path, key=hdf_key).to_numpy()
@@ -721,8 +653,6 @@ def read_data_for_display(hdf5_file_path, building_folder, weather, metric, zone
 
 
 def calculate_humidex(temperature, humidity):
-    # Constants for the humidex calculation
-    # You can adjust this formula based on the specific humidex calculation you're using
     e = 6.112 * np.exp(17.67 * temperature / (temperature + 243.5)) * humidity / 100
     humidex = temperature + (5/9) * (e - 10)
     return humidex
