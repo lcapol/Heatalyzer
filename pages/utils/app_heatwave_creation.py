@@ -9,6 +9,57 @@ epw_cols = ['Year','Month','Day','Hour','Minute','Data Source and Uncertainty Fl
 'Visibility','Ceiling Height','Present Weather Observation','Present Weather Codes','Precipitable Water','Aerosol Optical Depth','Snow Depth','Days Since Last Snowfall',
 'Albedo','Liquid Precipitation Depth','Liquid Precipitation Quantity']
 
+#Fins hottest day in hottest week
+def find_hottest_day(epw_data):
+
+    temperature_data = epw_data['Dry Bulb Temperature']
+    week_hours = 24 * 7
+    arr_len = len(temperature_data)
+
+    epw_data_extended = pd.concat([temperature_data, temperature_data]).reset_index(drop=True)
+
+    #Initialize variables for tracking the hottest week
+    week_data = epw_data_extended[:week_hours]
+    week_mean_temp = week_data.mean()
+
+    max_mean_temp = week_mean_temp
+    current_week_start = 0
+
+    #Iterate in steps of 24 hours / 1 day
+    for week_start in range(0, arr_len, 24):
+        # Calculate the mean temperature for the current window of one week
+        week_end = week_start + week_hours
+
+        week_data = epw_data_extended[week_start:week_end]
+        week_mean_temp = week_data.mean()
+
+        #Update if the current week's mean temperature is higher than the max found so far
+        if week_mean_temp > max_mean_temp:
+            max_mean_temp = week_mean_temp
+            current_week_start = week_start
+
+    hottest_day_idx = current_week_start
+    hottest_day_mean = 0
+    epw_data_extended[current_week_start:current_week_start+24]
+
+    #Find hottest day in hottest week
+    for offset in range(0, 7*24, 24):
+
+        curr_day_start = current_week_start + offset
+
+        day_data = epw_data_extended[curr_day_start:curr_day_start+24]
+        day_mean = day_data.mean()
+
+        # Update if the current day's mean temperature is higher than the max found so far
+        if day_mean > hottest_day_mean:
+            hottest_day_mean = day_mean
+            hottest_day_idx = curr_day_start
+
+    month = epw_data['Month'].iloc[hottest_day_idx % arr_len]
+    day = epw_data['Day'].iloc[hottest_day_idx % arr_len]
+
+    return month, day
+
 # Function to find the hottest day in summer
 def find_hottest_summer_day(epw_data):
     # Extract the temperature data
@@ -27,7 +78,7 @@ def find_hottest_summer_day(epw_data):
 
     return hottest_month, hottest_day
 
-##Take a weather file, determine the hottest day of the year and prolong its length to last heat_length days.
+##Take a weather file, determine the hottest day of the hottest week and prolong its length to last heat_length days.
 #Hearby the day with peak temperature is replicated and replaces the data in the following days
 def extend_heatwave(input_file, output_file, heat_length):
 
@@ -38,8 +89,8 @@ def extend_heatwave(input_file, output_file, heat_length):
     epw_data = file.dataframe
     file_len = len(epw_data)
 
-    #Find the hottest day in summer (hottest in terms of highest temperature peak)
-    hottest_month, hottest_day = find_hottest_summer_day(epw_data)
+    #Find the hottest day of hottest week / heatwave (hottest in terms of highest mean temperature)
+    hottest_month, hottest_day = find_hottest_day(epw_data)
     hottest_data = epw_data[(epw_data['Month'] == hottest_month) & (epw_data['Day'] == hottest_day)]
     #Find the index of the hottest day
     hottest_day_index = hottest_data.index[0]
