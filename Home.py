@@ -8,6 +8,7 @@ st.title("Heatalyzer")
 st.write("""
 Welcome to the Heatalyzer! This application is designed to assist in analyzing building 
 and weather data to understand thermal comfort, liveability and survivability during extreme weather conditions. 
+More information on the methodology used can be found in the following paper [here](https://www.cambridge.org/engage/coe/article-details/65ccc858e9ebbb4db958f3e9).
 There are three main sections in this application:
 """)
 
@@ -35,10 +36,11 @@ For individual buildings:
 - **Thermal Comfort During Hottest Weeks**: Examine building thermal comfort during the hottest weeks of the year. For this, the hourly thermal comfort values are shown for the 
 hottest summer week, with its preceding and following week. 
 - **Summer Distribution Shifts**: Compare how the hourly thermal comfort metrics during the summer months deviate from your chosen baseline weather scenario.
-- **Survivability and Liveability During Hottest Weeks**: Assess hourly temperature and relative humidity values during the hottest summer week against survivability and liveability limits for two age groups (18-45 and over 65), the Wet Bulb Temperature (WBT) of 35°C, and Humidex ranges.
+- **Liveability and Survivability During Hottest Weeks**: Assess hourly temperature and relative humidity values during the hottest summer week against liveability ranges and survivability limits for two age groups (18-45 and over 65), the Wet Bulb Temperature (WBT) of 35°C, and Humidex ranges.
 
 For comparisons across buildings:
 - **Comparison of Degree hours (Dh) and Exceedance hours (Eh)**: Analyze the Dh and Eh for across different scenarios, for both annual or worst-case values over one week. Selection options for zones, buildings, and weather scenarios to observe are provided.
+- **Comparison of Activity hours (Ah)**: Analyze the hours of possible activity over the hottest summer week for four activity ranges ('Moderate to vigorous activites', 'Light activities', 'No activites', 'Not survivable') across different scenarios.
 - **Peak Humidex Value**: Display the peak Humidex values on a temperature and relative humidity grid with established comfort ranges for Humidex. Selection options for specific zones, buildings, and weather scenarios to show are included.
 """)
 

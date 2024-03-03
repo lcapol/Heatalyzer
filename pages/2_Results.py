@@ -21,9 +21,9 @@ if 'building_names' not in st.session_state:
 if 'metrics_thresholds' not in st.session_state:
     st.session_state.metrics_thresholds = {'Humidex': 35, 'SET': 30, 'Temperature': 30, 'PMV': 1.5, 'WBGT': 23}
 
-result_types = ['Thermal comfort during hottest weeks', 'Summer distribution shifts', 'Survivability and liveability during hottest week']
+result_types = ['Thermal comfort during hottest weeks', 'Summer distribution shifts', 'Liveability and survivability during hottest week']
 
-comparison_types = ['Degree and Exceedance hours', 'Peak Humidex values']
+comparison_types = ['Degree and Exceedance hours', 'Activity hours', 'Peak Humidex values']
 
 metrics = ['Temperature', 'Humidex', 'SET', 'PMV', 'WBGT']
 
@@ -52,6 +52,9 @@ def building_comparison_page(option):
         dh_eh_comparison()
     elif comparison_type == 'Peak Humidex values':
         peak_humidex_comparison()
+    elif comparison_type == 'Activity hours':
+        activity_hours_comparison()
+
 
 def building_details_page(building):
     result_type = st.sidebar.selectbox("Choose result type", result_types)
@@ -61,10 +64,25 @@ def building_details_page(building):
 
     if result_type == 'Thermal comfort during hottest weeks':
         hottest_weeks_plot(building)
+    elif  result_type == 'Liveability and survivability during hottest week':
+        hottest_week_survivability(building)
     elif result_type == 'Summer distribution shifts':
         summer_diff_distr_plot(building)
-    elif  result_type == 'Survivability and liveability during hottest week':
-        hottest_week_survivability(building)
+
+def activity_hours_comparison():
+
+    ah_file_path = 'Output/data/ah_data.h5'
+
+    activity_levels = ['Moderate to vigorous physical activities', 'Light physical activities', 'No activity possible', 'Not survivable']
+
+    activity_level = st.radio("Select level of safe sustained activities :", activity_levels)
+
+    age_groups = ['Young (18-40 years)', 'Elderly (over 65 years)']
+    selected_age_groups = st.multiselect("Select age groups to display:", age_groups, default=age_groups)
+
+    # Function call to create the table based on selections
+    create_ah_table(ah_file_path, activity_level, selected_age_groups)
+
 
 def peak_humidex_comparison():
 
@@ -244,26 +262,26 @@ def hottest_week_survivability(building):
 
     #Checkboxes for WBT and survivability lines
     st.markdown("""Select survivability limits to display:""")
-    show_survivability_young= st.checkbox("Survivability limit for young (18-40)", True)
-    show_survivability_elderly= st.checkbox("Survivability limit for elderly (over 65)", False)
+    show_survivability_young= st.checkbox("Survivability limit for young (18-40 years)", True)
+    show_survivability_elderly= st.checkbox("Survivability limit for elderly (over 65 years)", False)
     show_wbt_line = st.checkbox("WBT of 35°C line", False)
 
     #Selection for liveability ranges to show. Only one of these ranges can be shown at a time.
-    selected_option = st.radio("Select liveability ranges to display:", ["Liveability ranges for young (18-40)",
-                                                     "Liveability ranges for elderly (over 65)", "Humidex ranges"], index=0)
+    selected_option = st.radio("Select liveability ranges to display:", ["Liveability ranges for young (18-40 years)",
+                                                     "Liveability ranges for elderly (over 65 years)", "Humidex ranges"], index=0)
 
     show_humidex_range = show_liv_elderly = show_liv_young = False
     if selected_option == "Humidex ranges":
         show_humidex_range = True
-    elif selected_option == "Liveability ranges for young (18-40)":
+    elif selected_option == "Liveability ranges for young (18-40 years)":
         show_liv_young = True
-    elif selected_option == "Liveability ranges for elderly (over 65)":
+    elif selected_option == "Liveability ranges for elderly (over 65 years)":
         show_liv_elderly = True
 
     #Extract the liveability ranges for the selected option
     if show_liv_young:
         liv = liv_young
-        title_ending = 'Young (18-40)'
+        title_ending = 'Young (18-40 years)'
         surv_not_liv_path = surv_not_liv_path_young
         Mmax_MET = pd.read_csv(mmax_path_young, index_col=0)
         not_surv = pd.read_csv(not_surv_path_young, index_col=0)
@@ -271,7 +289,7 @@ def hottest_week_survivability(building):
 
     if show_liv_elderly:
         liv = liv_elderly
-        title_ending = 'Elderly (over 65)'
+        title_ending = 'Elderly (over 65 years)'
         surv_not_liv_path = surv_not_liv_path_elderly
         Mmax_MET = pd.read_csv(mmax_path_elderly, index_col=0)
         Mmax_MET.iloc[185:, 50:] = np.nan
@@ -291,7 +309,7 @@ def hottest_week_survivability(building):
     #Add survivability limits
     if show_survivability_young:
         fig.add_trace(
-            go.Scatter(x=survivability_young['Tair'], y=survivability_young['rh'], mode='lines', name='Young (18-40)',
+            go.Scatter(x=survivability_young['Tair'], y=survivability_young['rh'], mode='lines', name='Young (18-40 years)',
                        legendgrouptitle_text="Survivability limit", legendgroup='group1',
                        showlegend=True, line=dict(color='purple', width=2)))
 
@@ -514,6 +532,12 @@ def hottest_week_survivability(building):
 
     st.plotly_chart(fig)
 
+    # Add the activity hours below the plot
+    st.markdown("##### Activity hours")
+    ah_file_path = 'Output/data/ah_data.h5'
+    create_ah_table_building(ah_file_path, building, zone, title_ending)
+
+
 #Visualization for the distribution shifts of the hourly summer values compared to the baseline file
 def summer_diff_distr_plot(building):
 
@@ -720,6 +744,120 @@ def create_dh_eh_table(dh_eh_file_path, tc_model, time_period, metric_type):
     theme = 'alpine'
 
     AgGrid(pivot_df, gridOptions=gridOptions, theme=theme,fit_columns_on_grid_load=True, height=400, allow_unsafe_jscode=True)
+
+
+def create_ah_table_building(ah_file_path, building, zone, age_group):
+    # Reading data from HDF and creating a table
+    all_data = []
+    activity_levels = ['Moderate to vigorous physical activities', 'Light physical activities', 'No activity possible', 'Not survivable']
+
+
+    # [moderate or vigorous activities, at most light, non-liveable, non-survivable] is the order of the activities in the vector
+    with pd.HDFStore(ah_file_path, 'r') as store:
+
+        for building_key in store.keys():
+            building_key = building_key.lstrip('/')
+            #print(building_key)
+            building_data = store[building_key]
+            building_st, zone_st, weather, age_st = building_key.split('/')
+
+            if building == building_st and zone == zone_st and age_st == age_group :
+                print('here')
+                for i, act_level in enumerate(activity_levels):
+                    data = {
+                        'Weather': weather,
+                        'Activity level': act_level,
+                        'Activity hours': building_data[0][i]
+                    }
+                    all_data.append(data)
+
+        # Creating a DataFrame for the table
+        df = pd.DataFrame(all_data)
+        # print(all_data)
+
+        pivot_df = df.pivot_table(index=['Weather'], columns='Activity level', values='Activity hours')
+        pivot_df = pivot_df.reset_index()
+
+        # Ensure columns are in the desired order
+        desired_column_order = ['Weather'] + activity_levels
+        # Reorder the DataFrame columns
+        pivot_df = pivot_df[desired_column_order]
+
+        gb = GridOptionsBuilder.from_dataframe(pivot_df)
+
+        gb.configure_default_column(groupable=True, value=True, enableRowGroup=True, aggFunc='sum', editable=True)
+
+        gb.configure_grid_options(headerHeight=50)
+
+        gb.configure_grid_options(
+            domLayout='autoHeight',
+            pagination=False
+        )
+
+        gridOptions = gb.build()
+        theme = 'alpine'
+
+        AgGrid(pivot_df, gridOptions=gridOptions, theme=theme, fit_columns_on_grid_load=True, height=400,
+               allow_unsafe_jscode=True)
+
+
+def create_ah_table(ah_file_path, activity_level, selected_age_groups):
+    # Reading data from HDF and creating a table
+    all_data = []
+    idx = 0
+    if activity_level == 'Light physical activities':
+        idx = 1
+    elif activity_level == "No activity possible":
+        idx = 2
+    elif activity_level == "Not survivable":
+        idx = 3
+
+    #[moderate or vigorous activities, at most light, non-liveable, non-survivable] is the order of the activities in the vector
+    with pd.HDFStore(ah_file_path, 'r') as store:
+
+        for building_key in store.keys():
+            building_key = building_key.lstrip('/')
+            building_data = store[building_key]
+            building_name, zone, weather, age = building_key.split('/')
+            if age in selected_age_groups:
+                data = {
+                    'Building': building_name,
+                    'Zone': zone,
+                    'Age': age,
+                    'Weather': weather,
+                    'Activity hours': building_data[0][idx]
+                }
+                all_data.append(data)
+
+    # Creating a DataFrame for the table
+    df = pd.DataFrame(all_data)
+    #print(all_data)
+
+    pivot_df = df.pivot_table(index=['Building', 'Zone', 'Age'], columns='Weather', values='Activity hours')
+    pivot_df = pivot_df.reset_index()
+
+    # Ensure columns are in the desired order
+    desired_column_order = ['Weather'] + activity_levels
+    # Reorder the DataFrame columns
+    pivot_df = pivot_df[desired_column_order]
+
+    gb = GridOptionsBuilder.from_dataframe(pivot_df)
+
+    gb.configure_default_column(groupable=True, value=True, enableRowGroup=True, aggFunc='sum', editable=True)
+
+    gb.configure_grid_options(headerHeight=50)
+
+    gb.configure_grid_options(
+        domLayout='autoHeight',
+        pagination=False
+    )
+
+    gridOptions = gb.build()
+    theme = 'alpine'
+
+    AgGrid(pivot_df, gridOptions=gridOptions, theme=theme, fit_columns_on_grid_load=True, height=400,
+           allow_unsafe_jscode=True)
+
 
 def color_formatter_js():
     return JsCode("""

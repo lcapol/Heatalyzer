@@ -57,6 +57,7 @@ def postprocess(output_folders, building_folders, weather_folders):
     summer_diff_file_path = data_path + '/summer_differences_data.h5'
     dh_eh_file_path = data_path + '/dh_eh_data.h5'
     max_hum_file_path = data_path + '/max_hum_data.h5'
+    ah_file_path = data_path + '/ah_data.h5'
 
     #Total number of simulations to process
     total_simulations = len(output_folders)
@@ -101,6 +102,7 @@ def postprocess(output_folders, building_folders, weather_folders):
         summer_differences_dicts = {}
         dh_eh_dicts = {}
         max_hum_dicts = {}
+        ah_dicts = {}
 
         for metric in metrics:
             annual_data_dicts[metric] = {}
@@ -113,6 +115,12 @@ def postprocess(output_folders, building_folders, weather_folders):
                 hottest_data_dicts[metric][zone] = {}
                 summer_differences_dicts[metric][zone] = {}
                 max_hum_dicts[zone] = {}
+
+        age_groups = ['Young (18-40 years)', 'Elderly (over 65 years)']
+        for age in age_groups:
+            ah_dicts[age] = {}
+            for zone in zones_inh:
+                ah_dicts[age][zone] = {}
 
         for metric in metrics_dh_eh:
             dh_eh_dicts[metric] = {}
@@ -211,6 +219,13 @@ def postprocess(output_folders, building_folders, weather_folders):
                         auc_max, max_days_over = find_week_with_max_total(auc_input)
                         dh_eh_dicts[model][zone][weather_folder] = (round(auc_val, 2), days_over, round(auc_max, 2), max_days_over)
 
+                #Compute Activity hours
+                hottest_temp_week = hottest_data_dicts['Temperature'][zone][weather_folder][7 * 24:2 * 7 * 24]
+                hottest_hum_week = hottest_data_dicts['Relative Humidity'][zone][weather_folder][7 * 24:2 * 7 * 24]
+                (activities_vector_y, activities_vector_el) = identify_activity_hours(hottest_temp_week, hottest_hum_week)
+                ah_dicts['Young (18-40 years)'][zone][weather_folder] = activities_vector_y
+                ah_dicts['Elderly (over 65 years)'][zone][weather_folder] = activities_vector_el
+
             completed_simulations += 1
 
         #Calculate differences
@@ -243,6 +258,8 @@ def postprocess(output_folders, building_folders, weather_folders):
         save_data_to_hdf(summer_differences_dicts, summer_diff_file_path, building_name)
         save_data_to_hdf(dh_eh_dicts, dh_eh_file_path, building_name, is_dh_eh=True)
         save_data_to_hdf(max_hum_dicts, max_hum_file_path, building_name, is_max_hum=True)
+        save_data_to_hdf(ah_dicts, ah_file_path, building_name)
+
 
     # Complete the progress bar
     progress_bar.progress(1.0)
@@ -286,6 +303,82 @@ def filter_summer_months(time_step):
     summer_months = st.session_state.summer_months
     month_filter = [datetime.strptime(x, "%B %d %H:%M").month in summer_months for x in time_step]
     return month_filter
+
+
+def identify_activity_hours(temperatures, humidities):
+
+    #Read in the file for survivability limit
+    # Extract survivability line
+    surv_file = 'pages/survivability_data/rh_version_NewSurvivability_limits_Night-Indoors_3H-Young_adult.csv'
+    surv_file_el = 'pages/survivability_data/rh_version_NewSurvivability_limits_Night-Indoors_3H-65_over.csv'
+
+    surv_line = pd.read_csv(surv_file)
+    surv_line_el = pd.read_csv(surv_file_el)
+
+    #Read in the file for liveability limit
+    liveab_limit = 'pages/survivability_data/rh_version_Liveability_limits_Night-Indoors_3H-Young_adult.csv'
+    liveab_limit_el = 'pages/survivability_data/rh_version_Liveability_limits_Night-Indoors_3H-65_over.csv'
+
+    liv_line = pd.read_csv(liveab_limit)
+    liv_line_el = pd.read_csv(liveab_limit_el)
+
+    #Read in the file for elderly and young representing the zone where occupants can perform at most light physical activities
+    light_activ_file = 'pages/survivability_data/rh_version_Liveability_light_physical_activity_Night-Indoors_3H-Young_adult.csv'
+    light_activ_el_file = 'pages/survivability_data/rh_version_Liveability_light_physical_activity_Night-Indoors_3H-65_over.csv'
+
+    light_activities = pd.read_csv(light_activ_file)
+    light_activities_el = pd.read_csv(light_activ_el_file)
+
+    #Arrays to collect how many times we were in the non-survivable, non-liveable (but survivable), at most light physical activities (but liveable), and moderate or vigorous activities zones
+    #[moderate or vigorous activities, at most light, non-liveable, non-survivable]
+
+    vec_y = [0,0,0,0]
+    vec_el = [0,0,0,0]
+
+    #Round to the nearest 0.5 humidity
+    humidities_round = np.clip(np.round(humidities*2)/2, 0.5, 100)
+
+    hum_y = light_activities['rh']
+
+    surv_y = surv_line['Tair']
+    surv_el = surv_line_el['Tair']
+
+    liv_y = liv_line['Tair']
+    liv_el = liv_line_el['Tair']
+
+    light_y = light_activities['Tair']
+    light_el = light_activities_el['Tair']
+
+    for i, humidity in enumerate(humidities_round):
+
+        temperature = temperatures[i]
+
+        matches_y = (hum_y == humidity)
+
+        idx = matches_y[matches_y].index[0]
+
+
+        if temperature >= surv_y[idx]:
+            vec_y[3] += 1
+        elif temperature >= liv_y[idx]:
+            vec_y[2] += 1
+        elif temperature >= light_y[idx]:
+            vec_y[1] += 1
+        else:
+            vec_y[0] += 1
+
+        if temperature >= surv_el[idx]:
+            vec_el[3] += 1
+        elif temperature >= liv_el[idx]:
+            vec_el[2] += 1
+        elif temperature >= light_el[idx]:
+            vec_el[1] += 1
+        else:
+            vec_el[0] += 1
+
+    #return the vectors
+    return vec_y, vec_el
+
 
 
 #Iterate over an array to find the week with maximum total Degree hours (Dh) over 0; returns the respective Dh and Exceedance hours (Eh)
