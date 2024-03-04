@@ -10,7 +10,8 @@ sys.path.append(str(script_dir))
 from utils.app_heatwave_creation import create_future_heatwave, extend_heatwave, include_uhi_effect
 
 st.set_page_config(page_title='Extreme Weather Generation')
-st.markdown("# Extreme Weather Generation")
+
+st.title("Extreme Weather Generation")
 
 if 'current_page' not in st.session_state:
     st.session_state['current_page'] = 'home'
@@ -44,16 +45,15 @@ os.makedirs('Extreme Weather/UHI Effect', exist_ok=True)
 
 def main():
     st.markdown("""
-                Use this tool to upload your weather data files and generate scenarios for extreme weather conditions. 
-                You can create prolonged heatwave scenarios, simulate future heatwave conditions, and integrate Urban Heat Island (UHI) effects.
+                Generate weather files for extreme heat scenarios, including prolonged heatwaves and anticipated future heatwaves, and for incorporating the Urban Heat Island (UHI) effect.                
                 """)
 
     st.subheader('Prolonged Heatwave Scenario')
     st.markdown("""
-                Upload a heatwave scenario and select the duration of peak conditions (2 to 7 days) to simulate a prolonged heatwave.
+                Upload a heatwave scenario and specify how long the hottest heatwave day should last (2 to 7 days) to generate a prolonged heatwave. 
                 """)
     heatwave_file = st.file_uploader('Upload Heatwave Data File', accept_multiple_files=False, type='epw')
-    days = st.slider('Select number of days for peak conditions:', 2, 7, value=2)
+    days = st.slider('Specify Duration', 2, 7, value=2)
 
     input_folder = 'Extreme Weather/Input/'
 
@@ -86,7 +86,7 @@ def main():
 
     st.subheader('Future Heatwave Scenario')
     st.markdown("""
-                Upload three files: a typical year scenario, a heatwave scenario, and a future typical year projection to create a future heatwave scenario.
+                Upload three files: weather data for a historically typical year, an observed heatwave, and a projected future typical year to create a future heatwave scenario.
                  """)
     weather_files = st.file_uploader('Upload Weather Data Files', accept_multiple_files=True, type='epw', key='weather')
 
@@ -131,11 +131,11 @@ def main():
 
     st.subheader('Urban Heat Island Effect Integration')
     st.markdown("""
-                 Upload a weather file and specify the UHI intensity to simulate the Urban Heat Island effect on temperature conditions.
+                 Upload a weather file and specify the UHI intensity to integrate the Urban Heat Island effect into the temperature conditions.
                 """)
 
     uhi_file = st.file_uploader('Upload Weather Data File', accept_multiple_files=False, type='epw',key='uhi')
-    uhi_intensity = st.number_input('Enter the UHI Intensity Value', min_value=0.0, step=0.001, key='uhi_intensity')
+    uhi_intensity = st.number_input('Specify UHI Intensity', min_value=0.0, step=0.001, key='uhi_intensity')
 
     #Process the UHI scenario
     if uhi_file and uhi_intensity is not None:

@@ -19,7 +19,7 @@ if 'building_names' not in st.session_state:
         st.session_state['building_names'] = []
 
 if 'metrics_thresholds' not in st.session_state:
-    st.session_state.metrics_thresholds = {'Humidex': 35, 'SET': 30, 'Temperature': 30, 'PMV': 1.5, 'WBGT': 23}
+    st.session_state.metrics_thresholds = {'Temperature': 30, 'Humidex': 35, 'SET': 30, 'PMV': 1.5, 'WBGT': 23}
 
 result_types = ['Thermal comfort during hottest weeks', 'Summer distribution shifts', 'Liveability and survivability during hottest week']
 
@@ -28,7 +28,7 @@ comparison_types = ['Degree and Exceedance hours', 'Activity hours', 'Peak Humid
 metrics = ['Temperature', 'Humidex', 'SET', 'PMV', 'WBGT']
 
 def main():
-    st.markdown("# Results")
+    st.title("Results")
 
     building_options = st.session_state.building_names + ['Comparisons across buildings']
 
@@ -190,7 +190,7 @@ def peak_humidex_comparison():
 #Visualize Degree and Exceedance Hours for Temperature, Humidex and SET with options for annual or maximum value over one week
 def dh_eh_comparison():
 
-    tc_model = st.radio("Select thermal comfort model", ["Humidex", "SET", "Temperature"])
+    tc_model = st.radio("Select thermal comfort model", ["Temperature", "Humidex", "SET"])
     time_period = st.radio("Select time period", ["Annual", "Maximum Week"])
     metric_type = st.radio("Select metric type", ["Degree hours", "Exceedance hours"])
 
@@ -533,9 +533,10 @@ def hottest_week_survivability(building):
     st.plotly_chart(fig)
 
     # Add the activity hours below the plot
-    st.markdown("##### Activity hours")
-    ah_file_path = 'Output/data/ah_data.h5'
-    create_ah_table_building(ah_file_path, building, zone, title_ending)
+    if show_liv_young or show_liv_elderly:
+        st.markdown("##### Activity hours")
+        ah_file_path = 'Output/data/ah_data.h5'
+        create_ah_table_building(ah_file_path, building, zone, title_ending)
 
 
 #Visualization for the distribution shifts of the hourly summer values compared to the baseline file

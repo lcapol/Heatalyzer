@@ -11,7 +11,8 @@ from utils.app_BEM import BEM_simulation
 from utils.app_postprocessing import postprocess
 
 st.set_page_config(page_title='File Upload')
-st.markdown("# File Upload")
+
+st.title("File Upload")
 
 if 'current_page' not in st.session_state:
     st.session_state['current_page'] = 'home'
@@ -43,18 +44,16 @@ months = ['January', 'February', 'March', 'April', 'May', 'June','July', 'August
 
 def main():
 
-    st.markdown("""
-        Please upload your building and weather data files. 
-        """)
+    st.markdown("Please upload your building and weather data files.")
 
-    st.subheader('Upload Building Data Files (.idf)')
-    building_files = st.file_uploader('Choose Building Data Files', accept_multiple_files=True, type='idf')
-    st.markdown('**Note**: The tool supports IDF files of version 23.1.0. Additionally, you can upload a maximum of 10 building files for processing.')
+    st.subheader('Building Data')
+    building_files = st.file_uploader('Upload Building Data Files', accept_multiple_files=True, type='idf')
+    st.markdown('**Note**: The tool supports IDF files of version 23.1.0. You can upload a maximum of 10 building files at a time for analysis.')
 
-    st.subheader('Upload Weather Data Files (.epw)')
-    weather_files = st.file_uploader('Choose Weather Data Files', accept_multiple_files=True, type='epw',
+    st.subheader('Weather Data')
+    weather_files = st.file_uploader('Upload Weather Data Files', accept_multiple_files=True, type='epw',
                                      key='weather')
-    st.markdown('**Note**: You can upload a maximum of 5 weather files at a time for analysis.')
+    st.markdown('**Note**: The tool supports EPW files. You can upload a maximum of 5 weather files at a time for analysis.')
 
     if weather_files:
         st.markdown('---')
