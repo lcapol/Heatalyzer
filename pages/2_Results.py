@@ -784,6 +784,10 @@ def create_ah_table_building(ah_file_path, building, zone, age_group):
         # Reorder the DataFrame columns
         pivot_df = pivot_df[desired_column_order]
 
+        #df = pd.DataFrame(pivot_df)
+
+        #st.dataframe(df.set_index(df.columns[0]), use_container_width=True)
+
         gb = GridOptionsBuilder.from_dataframe(pivot_df)
 
         gb.configure_default_column(groupable=True, value=True, enableRowGroup=True, aggFunc='sum', editable=True)
@@ -801,10 +805,11 @@ def create_ah_table_building(ah_file_path, building, zone, age_group):
         AgGrid(pivot_df, gridOptions=gridOptions, theme=theme, fit_columns_on_grid_load=True, height=400,
                allow_unsafe_jscode=True)
 
-
+        #'''
 def create_ah_table(ah_file_path, activity_level, selected_age_groups):
     # Reading data from HDF and creating a table
     all_data = []
+
     idx = 0
     if activity_level == 'Light physical activities':
         idx = 1
@@ -838,9 +843,9 @@ def create_ah_table(ah_file_path, activity_level, selected_age_groups):
     pivot_df = pivot_df.reset_index()
 
     # Ensure columns are in the desired order
-    desired_column_order = ['Weather'] + activity_levels
+    #desired_column_order = ['Weather'] + activity_levels
     # Reorder the DataFrame columns
-    pivot_df = pivot_df[desired_column_order]
+    #pivot_df = pivot_df[desired_column_order]
 
     gb = GridOptionsBuilder.from_dataframe(pivot_df)
 

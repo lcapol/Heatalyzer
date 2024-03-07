@@ -222,7 +222,9 @@ def postprocess(output_folders, building_folders, weather_folders):
                 #Compute Activity hours
                 hottest_temp_week = hottest_data_dicts['Temperature'][zone][weather_folder][7 * 24:2 * 7 * 24]
                 hottest_hum_week = hottest_data_dicts['Relative Humidity'][zone][weather_folder][7 * 24:2 * 7 * 24]
-                (activities_vector_y, activities_vector_el) = identify_activity_hours(hottest_temp_week, hottest_hum_week)
+                day_hours_temp = extract_day_hours(hottest_temp_week)
+                day_hours_hum = extract_day_hours(hottest_hum_week)
+                (activities_vector_y, activities_vector_el) = identify_activity_hours(day_hours_temp,day_hours_hum)
                 ah_dicts['Young (18-40 years)'][zone][weather_folder] = activities_vector_y
                 ah_dicts['Elderly (over 65 years)'][zone][weather_folder] = activities_vector_el
 
@@ -265,6 +267,19 @@ def postprocess(output_folders, building_folders, weather_folders):
     progress_bar.progress(1.0)
     status_text.text(f'Processing complete. {total_simulations} simulations run.')
 
+
+
+#Given an array consisting of values for x whole days (of size x*24), extract the data during day hours, defined as 06:00-22:00
+def extract_day_hours(array):
+
+    nr_days = len(array)//24
+
+    day_values = []
+
+    for i in range(nr_days):
+        day_values.extend(array[6+i*24:22+i*24])
+
+    return day_values
 
 
 def transform_date(input_dates):
@@ -336,6 +351,7 @@ def identify_activity_hours(temperatures, humidities):
     vec_el = [0,0,0,0]
 
     #Round to the nearest 0.5 humidity
+    humidities = np.array(humidities)
     humidities_round = np.clip(np.round(humidities*2)/2, 0.5, 100)
 
     hum_y = light_activities['rh']
@@ -345,6 +361,8 @@ def identify_activity_hours(temperatures, humidities):
 
     liv_y = liv_line['Tair']
     liv_el = liv_line_el['Tair']
+
+    print(liv_y)
 
     light_y = light_activities['Tair']
     light_el = light_activities_el['Tair']
@@ -378,7 +396,6 @@ def identify_activity_hours(temperatures, humidities):
 
     #return the vectors
     return vec_y, vec_el
-
 
 
 #Iterate over an array to find the week with maximum total Degree hours (Dh) over 0; returns the respective Dh and Exceedance hours (Eh)
@@ -417,32 +434,6 @@ def find_week_with_max_total(array):
 
     return max_total, max_days_over
 
-#Calculate Humidex for lists of temperature and relative humidity values
-#If max_cond = True return the maximum humidex value reached with the respective temperature and relative humidity values
-def humidex_list(temp_list, rel_hum_list, max_cond=False):
-
-    humidex_lis = []
-
-    max_hum=0
-    max_hum_temp=0
-    max_hum_rh=0
-
-    for (i, temp) in enumerate(temp_list):
-        hum = rel_hum_list[i]
-        humidex_val = humidex(temp, hum, round=False)['humidex']
-
-        if humidex_val > max_hum:
-            max_hum = humidex_val
-            max_hum_temp = temp
-            max_hum_rh = hum
-
-        humidex_lis.append(humidex_val)
-
-    if max_cond:
-        return humidex_lis, (max_hum, max_hum_temp, max_hum_rh)
-    else:
-        return humidex_lis
-
 #Identify the hottest (mean) week
 def find_most_extreme_week(file):
 
@@ -478,6 +469,31 @@ def find_most_extreme_week(file):
 
     return start_month, start_day
 
+#Calculate Humidex for lists of temperature and relative humidity values
+#If max_cond = True return the maximum humidex value reached with the respective temperature and relative humidity values
+def humidex_list(temp_list, rel_hum_list, max_cond=False):
+
+    humidex_lis = []
+
+    max_hum=0
+    max_hum_temp=0
+    max_hum_rh=0
+
+    for (i, temp) in enumerate(temp_list):
+        hum = rel_hum_list[i]
+        humidex_val = humidex(temp, hum, round=False)['humidex']
+
+        if humidex_val > max_hum:
+            max_hum = humidex_val
+            max_hum_temp = temp
+            max_hum_rh = hum
+
+        humidex_lis.append(humidex_val)
+
+    if max_cond:
+        return humidex_lis, (max_hum, max_hum_temp, max_hum_rh)
+    else:
+        return humidex_lis
 
 #Calculate indoor WBGT temperature for lists of temperature and relative humidity values
 def calculate_wbgt_lis(temperature, humidity, mrt, wind_speed=0.15):

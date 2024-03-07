@@ -142,6 +142,7 @@ def create_future_heatwave(tmy_file, heatwave_file, future_file, output_file):
 
     #The first 5 columns stay the same; for the remaining ones we always add the difference of the Heatwave-TMY to the typical future data
     #The heatwave data provided by shinyweatherdata has missing data in the following columns, so we set them to the same values as in the Future TMY
+    #Assumes that the historical heatwave data has values available for the remaining weather variables
     miss_data_idx = [5, 10, 11, 16, 17, 18, 19, 24, 25, 26, 27, 28, 29, 31, 32, 34]
     date_idx = [0, 1, 2, 3, 4]
 
@@ -165,9 +166,11 @@ def create_future_heatwave(tmy_file, heatwave_file, future_file, output_file):
         elif epw_cols[i] == 'Total Sky Cover':
             fut_heat_data['Total Sky Cover'] = fut_heat_data['Total Sky Cover'].clip(lower=0, upper=10)
 
+        #clip the sky coverage to [0,10]
         elif epw_cols[i] == 'Opaque Sky Cover (used if Horizontal IR Intensity missing)':
             fut_heat_data['Opaque Sky Cover (used if Horizontal IR Intensity missing)'] = fut_heat_data['Opaque Sky Cover (used if Horizontal IR Intensity missing)'].clip(lower=0, upper=10)
 
+        #clip the wind direction to [0,360]
         elif epw_cols[i] == 'Wind Direction':
             fut_heat_data['Wind Direction'] = fut_heat_data['Wind Direction'] % 360
 
